@@ -70,6 +70,22 @@ public class SaveManagerTest {
     }
 
     @Test
+    public void saveAndLoadRestoresQuestAndNpcState() {
+        File saveFile = saveFile("quest");
+        SaveManager saveManager = new SaveManager(saveFile);
+        GameEngine engine = new GameEngine(saveManager);
+        engine.handleInput(InputCommand.newGame(123L));
+
+        engine.handleInput(InputCommand.answer("pom.xml"));
+        engine.handleInput(InputCommand.saveAndQuit());
+        GameState loaded = new GameEngine(saveManager).playWithInputString("l").getState();
+
+        assertTrue(loaded.getQuest().isMavenPuzzleSolved());
+        assertFalse(loaded.getNpcs().isEmpty());
+        assertEquals(engine.getState().getNpcs().get(0).getPosition(), loaded.getNpcs().get(0).getPosition());
+    }
+
+    @Test
     public void loadWithoutSaveShowsMessage() {
         File saveFile = saveFile("missing");
         if (saveFile.exists()) {

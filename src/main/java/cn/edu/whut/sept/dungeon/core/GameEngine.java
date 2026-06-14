@@ -41,6 +41,14 @@ public class GameEngine {
                 index += 2;
                 continue;
             }
+            if (current == '!' && input.startsWith("!answer(", index)) {
+                int closeIndex = input.indexOf(')', index);
+                if (closeIndex > index) {
+                    handleInput(InputCommand.answer(input.substring(index + 8, closeIndex)));
+                    index = closeIndex + 1;
+                    continue;
+                }
+            }
 
             handleInput(InputCommand.fromKey(current));
             index++;
@@ -67,6 +75,9 @@ public class GameEngine {
                 break;
             case INTERACT:
                 state = state.interact();
+                break;
+            case ANSWER:
+                state = state.answer(command.getAnswer());
                 break;
             case INVENTORY:
                 state = state.describeInventory();

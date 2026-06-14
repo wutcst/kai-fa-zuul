@@ -46,7 +46,7 @@ public final class HudPanel extends JPanel {
     }
 
     private String objectiveText() {
-        return "Objective: explore the campus dungeon, gather defense materials, and find the defense hall.";
+        return "Objective: talk to NPCs, solve the Maven puzzle, gather materials, and reach the defense hall.";
     }
 
     private String messageText() {

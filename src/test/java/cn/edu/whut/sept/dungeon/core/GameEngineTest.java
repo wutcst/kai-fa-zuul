@@ -3,6 +3,7 @@ package cn.edu.whut.sept.dungeon.core;
 import cn.edu.whut.sept.dungeon.world.Position;
 import cn.edu.whut.sept.dungeon.world.World;
 import cn.edu.whut.sept.dungeon.entity.Item;
+import cn.edu.whut.sept.dungeon.entity.Npc;
 import org.junit.Test;
 
 import java.util.ArrayDeque;
@@ -152,16 +153,71 @@ public class GameEngineTest {
         GameEngine engine = new GameEngine();
         engine.handleInput(InputCommand.newGame(123L));
 
-        for (Item item : engine.getState().getItems()) {
-            moveTo(engine, item.getPosition());
-            engine.handleInput(InputCommand.fromKey('e'));
-        }
+        completeNpcQuestLine(engine);
         moveTo(engine, engine.getState().getWorld().getDefenseHallPosition());
         GameState completed = engine.handleInput(InputCommand.fromKey('e'));
 
         assertTrue(completed.isCompleted());
         assertTrue(completed.getMessage().contains("Defense completed"));
         assertTrue(completed.getMessage().contains("software engineering practice"));
+    }
+
+    @Test
+    public void librarianRequiresStudentCardForReport() {
+        GameEngine engine = new GameEngine();
+        engine.handleInput(InputCommand.newGame(123L));
+
+        moveTo(engine, findNpc(engine.getState(), "librarian").getPosition());
+        GameState withoutCard = engine.handleInput(InputCommand.fromKey('e'));
+
+        assertFalse(withoutCard.getInventory().contains("report"));
+        assertTrue(withoutCard.getMessage().contains("student-card"));
+
+        moveTo(engine, findItem(engine.getState(), "student-card").getPosition());
+        engine.handleInput(InputCommand.fromKey('e'));
+        moveTo(engine, findNpc(engine.getState(), "librarian").getPosition());
+        GameState withCard = engine.handleInput(InputCommand.fromKey('e'));
+
+        assertTrue(withCard.getInventory().contains("report"));
+        assertTrue(withCard.getQuest().isReportIssued());
+    }
+
+    @Test
+    public void teacherIssuesPassAfterMaterialsReady() {
+        GameEngine engine = new GameEngine();
+        engine.handleInput(InputCommand.newGame(123L));
+
+        completeMaterialsBeforeTeacher(engine);
+        moveTo(engine, findNpc(engine.getState(), "teacher").getPosition());
+        GameState passIssued = engine.handleInput(InputCommand.fromKey('e'));
+
+        assertTrue(passIssued.getInventory().contains("pass"));
+        assertTrue(passIssued.getQuest().isPassIssued());
+        assertTrue(passIssued.getMessage().contains("defense pass"));
+    }
+
+    @Test
+    public void npcDialogueChangesWithQuestStateAndPuzzleAnswer() {
+        GameEngine engine = new GameEngine();
+        engine.handleInput(InputCommand.newGame(123L));
+
+        moveTo(engine, findNpc(engine.getState(), "assistant").getPosition());
+        GameState withoutUsb = engine.handleInput(InputCommand.fromKey('e'));
+        assertTrue(withoutUsb.getMessage().contains("usb"));
+
+        moveTo(engine, findItem(engine.getState(), "usb").getPosition());
+        engine.handleInput(InputCommand.fromKey('e'));
+        moveTo(engine, findNpc(engine.getState(), "assistant").getPosition());
+        GameState puzzlePrompt = engine.handleInput(InputCommand.fromKey('e'));
+        assertTrue(puzzlePrompt.getMessage().contains("Maven"));
+
+        GameState solved = engine.handleInput(InputCommand.answer("pom.xml"));
+        assertTrue(solved.getQuest().isMavenPuzzleSolved());
+        GameState materials = engine.handleInput(InputCommand.fromKey('e'));
+
+        assertTrue(materials.getInventory().contains("laptop"));
+        assertTrue(materials.getInventory().contains("slides"));
+        assertTrue(materials.getQuest().isSlidesExported());
     }
 
     private GameState moveUntilNextStepIsBlocked(GameEngine engine, Direction direction) {
@@ -235,6 +291,44 @@ public class GameEngineTest {
         for (int i = 0; i < path.length(); i++) {
             engine.handleInput(InputCommand.fromKey(path.charAt(i)));
         }
+    }
+
+    private void completeNpcQuestLine(GameEngine engine) {
+        completeMaterialsBeforeTeacher(engine);
+        moveTo(engine, findNpc(engine.getState(), "teacher").getPosition());
+        engine.handleInput(InputCommand.fromKey('e'));
+    }
+
+    private void completeMaterialsBeforeTeacher(GameEngine engine) {
+        moveTo(engine, findItem(engine.getState(), "student-card").getPosition());
+        engine.handleInput(InputCommand.fromKey('e'));
+        moveTo(engine, findNpc(engine.getState(), "librarian").getPosition());
+        engine.handleInput(InputCommand.fromKey('e'));
+
+        moveTo(engine, findItem(engine.getState(), "usb").getPosition());
+        engine.handleInput(InputCommand.fromKey('e'));
+        moveTo(engine, findNpc(engine.getState(), "assistant").getPosition());
+        engine.handleInput(InputCommand.fromKey('e'));
+        engine.handleInput(InputCommand.answer("pom.xml"));
+        engine.handleInput(InputCommand.fromKey('e'));
+    }
+
+    private Item findItem(GameState state, String itemId) {
+        for (Item item : state.getItems()) {
+            if (item.getId().equals(itemId)) {
+                return item;
+            }
+        }
+        throw new AssertionError("Missing item: " + itemId);
+    }
+
+    private Npc findNpc(GameState state, String npcId) {
+        for (Npc npc : state.getNpcs()) {
+            if (npc.getId().equals(npcId)) {
+                return npc;
+            }
+        }
+        throw new AssertionError("Missing npc: " + npcId);
     }
 
     private String pathTo(GameState state, Position target) {

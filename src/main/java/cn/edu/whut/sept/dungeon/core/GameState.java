@@ -2,6 +2,8 @@ package cn.edu.whut.sept.dungeon.core;
 
 import cn.edu.whut.sept.dungeon.entity.Inventory;
 import cn.edu.whut.sept.dungeon.entity.Item;
+import cn.edu.whut.sept.dungeon.entity.Npc;
+import cn.edu.whut.sept.dungeon.quest.QuestState;
 import cn.edu.whut.sept.dungeon.world.Position;
 import cn.edu.whut.sept.dungeon.world.Room;
 import cn.edu.whut.sept.dungeon.world.World;
@@ -28,7 +30,8 @@ public final class GameState {
     private final World world;
     private final Inventory inventory;
     private final List<Item> items;
-    private final boolean completed;
+    private final List<Npc> npcs;
+    private final QuestState quest;
     private final boolean[][] explored;
     private final boolean[][] visible;
     private final String message;
@@ -36,6 +39,14 @@ public final class GameState {
     private GameState(Long seed, boolean started, boolean exited, boolean saveRequested,
                       PlayerState player, World world, Inventory inventory, List<Item> items, boolean completed,
                       boolean[][] explored, boolean[][] visible, String message) {
+        this(seed, started, exited, saveRequested, player, world, inventory, items,
+                Collections.<Npc>emptyList(), new QuestState(false, false, false, false, completed),
+                explored, visible, message);
+    }
+
+    private GameState(Long seed, boolean started, boolean exited, boolean saveRequested,
+                      PlayerState player, World world, Inventory inventory, List<Item> items, List<Npc> npcs,
+                      QuestState quest, boolean[][] explored, boolean[][] visible, String message) {
         this.seed = seed;
         this.started = started;
         this.exited = exited;
@@ -46,7 +57,10 @@ public final class GameState {
         this.items = Collections.unmodifiableList(new ArrayList<Item>(items == null
                 ? Collections.<Item>emptyList()
                 : items));
-        this.completed = completed;
+        this.npcs = Collections.unmodifiableList(new ArrayList<Npc>(npcs == null
+                ? Collections.<Npc>emptyList()
+                : npcs));
+        this.quest = quest == null ? QuestState.initial() : quest;
         this.explored = copyGrid(explored);
         this.visible = copyGrid(visible);
         this.message = message;
@@ -54,23 +68,24 @@ public final class GameState {
 
     public static GameState initial() {
         return new GameState(null, false, false, false, PlayerState.origin(),
-                null, Inventory.empty(), Collections.<Item>emptyList(), false, null, null, "Ready.");
+                null, Inventory.empty(), Collections.<Item>emptyList(), Collections.<Npc>emptyList(),
+                QuestState.initial(), null, null, "Ready.");
     }
 
     public static GameState newGame(long seed) {
         World world = new WorldGenerator().generate(seed);
         PlayerState player = PlayerState.at(world.getSpawnPosition());
         return new GameState(seed, true, false, false, player, world,
-                Inventory.empty(), createItems(world), false,
+                Inventory.empty(), createItems(world), createNpcs(world), QuestState.initial(),
                 createExploredFor(world, player), createVisibleFor(world, player),
                 "New game started with seed " + seed + ".");
     }
 
     public static GameState restored(Long seed, boolean started, boolean exited, boolean saveRequested,
                                      PlayerState player, World world, Inventory inventory, List<Item> items,
-                                     boolean completed, boolean[][] explored, String message) {
+                                     List<Npc> npcs, QuestState quest, boolean[][] explored, String message) {
         return new GameState(seed, started, exited, saveRequested, player, world,
-                inventory, items, completed, explored, world == null ? null : createVisibleFor(world, player),
+                inventory, items, npcs, quest, explored, world == null ? null : createVisibleFor(world, player),
                 message);
     }
 
@@ -110,8 +125,16 @@ public final class GameState {
         return items;
     }
 
+    public List<Npc> getNpcs() {
+        return npcs;
+    }
+
+    public QuestState getQuest() {
+        return quest;
+    }
+
     public boolean isCompleted() {
-        return completed;
+        return quest.isCompleted();
     }
 
     public boolean isExplored(int x, int y) {
@@ -150,17 +173,17 @@ public final class GameState {
 
     public GameState withMessage(String nextMessage) {
         return new GameState(seed, started, exited, saveRequested, player, world,
-                inventory, items, completed, explored, visible, nextMessage);
+                inventory, items, npcs, quest, explored, visible, nextMessage);
     }
 
     public GameState markExited() {
         return new GameState(seed, started, true, saveRequested, player, world,
-                inventory, items, completed, explored, visible, message);
+                inventory, items, npcs, quest, explored, visible, message);
     }
 
     public GameState markSaveRequested() {
         return new GameState(seed, started, exited, true, player, world,
-                inventory, items, completed, explored, visible, message);
+                inventory, items, npcs, quest, explored, visible, message);
     }
 
     public GameState movePlayer(Direction direction) {
@@ -172,12 +195,12 @@ public final class GameState {
         Position target = new Position(player.getX() + direction.getDx(), player.getY() + direction.getDy());
         if (!world.isWalkable(target)) {
             return new GameState(seed, started, exited, saveRequested, turnedPlayer, world,
-                    inventory, items, completed, explored, visible, "Blocked by wall.");
+                    inventory, items, npcs, quest, explored, visible, "Blocked by wall.");
         }
 
         PlayerState movedPlayer = turnedPlayer.moveTo(target);
         return new GameState(seed, started, exited, saveRequested, movedPlayer, world,
-                inventory, items, completed,
+                inventory, items, npcs, quest,
                 createExploredFor(world, movedPlayer, explored), createVisibleFor(world, movedPlayer),
                 "Moved " + direction.name() + ".");
     }
@@ -187,10 +210,14 @@ public final class GameState {
             return withMessage("Start a new game first.");
         }
 
+        Npc npc = npcAt(player.getPosition());
+        if (npc != null) {
+            return talkTo(npc);
+        }
         if (player.getPosition().equals(world.getDefenseHallPosition())) {
             if (inventory.containsAll(REPORT, LAPTOP, SLIDES, PASS)) {
                 return new GameState(seed, started, exited, saveRequested, player, world,
-                        inventory, items, true, explored, visible,
+                        inventory, items, npcs, quest.withCompleted(), explored, visible,
                         "Defense completed in " + player.getSteps() + " steps. Excellent software engineering practice!");
             }
             return withMessage("Defense hall locked. Missing: " + missingDefenseMaterials() + ".");
@@ -200,6 +227,15 @@ public final class GameState {
             return collectItem(item);
         }
         return withMessage("Nothing to interact with here.");
+    }
+
+    public GameState answer(String answer) {
+        if ("pom.xml".equalsIgnoreCase(answer == null ? "" : answer.trim())) {
+            return new GameState(seed, started, exited, saveRequested, player, world,
+                    inventory, items, npcs, quest.withMavenPuzzleSolved(), explored, visible,
+                    "Correct. Maven project configuration lives in pom.xml.");
+        }
+        return withMessage("Incorrect. Hint: Maven keeps project configuration in a file named pom.xml.");
     }
 
     public GameState describeInventory() {
@@ -215,6 +251,15 @@ public final class GameState {
         return null;
     }
 
+    public Npc npcAt(Position position) {
+        for (Npc npc : npcs) {
+            if (npc.getPosition().equals(position)) {
+                return npc;
+            }
+        }
+        return null;
+    }
+
     private GameState collectItem(Item item) {
         List<Item> nextItems = new ArrayList<Item>();
         for (Item current : items) {
@@ -222,8 +267,48 @@ public final class GameState {
         }
         Inventory nextInventory = inventory.add(item.getId());
         return new GameState(seed, started, exited, saveRequested, player, world,
-                nextInventory, nextItems, completed, explored, visible,
+                nextInventory, nextItems, npcs, quest, explored, visible,
                 "Picked up " + item.getName() + ".");
+    }
+
+    private GameState talkTo(Npc npc) {
+        if ("librarian".equals(npc.getId())) {
+            if (!inventory.contains(STUDENT_CARD)) {
+                return withMessage("Librarian: Bring your student-card before I lend the defense report.");
+            }
+            if (!inventory.contains(REPORT)) {
+                return grantItem(REPORT, "Librarian: Student-card checked. Here is the defense report.",
+                        quest.withReportIssued());
+            }
+            return withMessage("Librarian: The report is already in your backpack.");
+        }
+        if ("assistant".equals(npc.getId())) {
+            if (!inventory.contains(USB)) {
+                return withMessage("Assistant: Find a usb first; the demo slides need to be exported.");
+            }
+            if (!quest.isMavenPuzzleSolved()) {
+                return withMessage("Assistant: Course puzzle - what is Maven's configuration file? Use !answer(pom.xml).");
+            }
+            Inventory nextInventory = inventory.add(LAPTOP).add(SLIDES);
+            return new GameState(seed, started, exited, saveRequested, player, world,
+                    nextInventory, items, npcs, quest.withSlidesExported(), explored, visible,
+                    "Assistant: USB accepted. Laptop ready and slides exported.");
+        }
+        if ("teacher".equals(npc.getId())) {
+            if (!inventory.containsAll(REPORT, LAPTOP, SLIDES)) {
+                return withMessage("Teacher: I need to see report, laptop, and slides before issuing the pass.");
+            }
+            if (!inventory.contains(PASS)) {
+                return grantItem(PASS, "Teacher: Materials checked. Take this defense pass.", quest.withPassIssued());
+            }
+            return withMessage("Teacher: You already have the defense pass. Go to the defense hall.");
+        }
+        return withMessage(npc.getName() + ": Keep exploring and prepare your defense.");
+    }
+
+    private GameState grantItem(String itemId, String nextMessage, QuestState nextQuest) {
+        return new GameState(seed, started, exited, saveRequested, player, world,
+                inventory.add(itemId), items, npcs, nextQuest, explored, visible, nextMessage);
     }
 
     private String missingDefenseMaterials() {
@@ -361,10 +446,6 @@ public final class GameState {
         List<String> ids = new ArrayList<String>();
         ids.add(STUDENT_CARD);
         ids.add(USB);
-        ids.add(REPORT);
-        ids.add(LAPTOP);
-        ids.add(SLIDES);
-        ids.add(PASS);
 
         List<Item> result = new ArrayList<Item>();
         List<Room> rooms = world.getRooms();
@@ -373,6 +454,15 @@ public final class GameState {
             String id = ids.get(i);
             result.add(new Item(id, displayName(id), candidateRooms.get(i % candidateRooms.size()).getCenter(), false));
         }
+        return result;
+    }
+
+    private static List<Npc> createNpcs(World world) {
+        List<Npc> result = new ArrayList<Npc>();
+        List<Room> rooms = itemRooms(world);
+        result.add(new Npc("librarian", "Librarian", rooms.get(Math.min(2, rooms.size() - 1)).getCenter()));
+        result.add(new Npc("assistant", "Assistant", rooms.get(Math.min(3, rooms.size() - 1)).getCenter()));
+        result.add(new Npc("teacher", "Teacher", rooms.get(Math.min(4, rooms.size() - 1)).getCenter()));
         return result;
     }
 

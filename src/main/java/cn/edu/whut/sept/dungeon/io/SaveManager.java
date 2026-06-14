@@ -4,6 +4,8 @@ import cn.edu.whut.sept.dungeon.core.Direction;
 import cn.edu.whut.sept.dungeon.core.GameState;
 import cn.edu.whut.sept.dungeon.entity.Inventory;
 import cn.edu.whut.sept.dungeon.entity.Item;
+import cn.edu.whut.sept.dungeon.entity.Npc;
+import cn.edu.whut.sept.dungeon.quest.QuestState;
 import cn.edu.whut.sept.dungeon.world.Corridor;
 import cn.edu.whut.sept.dungeon.world.Position;
 import cn.edu.whut.sept.dungeon.world.Room;
@@ -89,12 +91,15 @@ public final class SaveManager {
             data.player = PlayerData.from(state.getPlayer());
             data.world = state.getWorld() == null ? null : WorldData.from(state.getWorld());
             data.inventory = state.getInventory().getItemIds();
-            data.quest = new QuestData();
-            data.quest.completed = state.isCompleted();
+            data.quest = QuestData.from(state.getQuest());
             data.entities = new EntityData();
             data.entities.items = new ArrayList<ItemData>();
             for (Item item : state.getItems()) {
                 data.entities.items.add(ItemData.from(item));
+            }
+            data.entities.npcs = new ArrayList<NpcData>();
+            for (Npc npc : state.getNpcs()) {
+                data.entities.npcs.add(NpcData.from(npc));
             }
             data.explored = encodeBooleans(state.copyExplored());
             data.message = state.getMessage();
@@ -107,9 +112,10 @@ public final class SaveManager {
                     ? GameState.PlayerState.origin()
                     : player.toPlayerState();
             List<Item> restoredItems = entities == null ? Collections.<Item>emptyList() : entities.toItems();
-            boolean completed = quest != null && quest.completed;
+            List<Npc> restoredNpcs = entities == null ? Collections.<Npc>emptyList() : entities.toNpcs();
+            QuestState restoredQuest = quest == null ? QuestState.initial() : quest.toQuestState();
             return GameState.restored(seed, started, exited, saveRequested, restoredPlayer, restoredWorld,
-                    Inventory.of(inventory), restoredItems, completed, decodeBooleans(explored), message);
+                    Inventory.of(inventory), restoredItems, restoredNpcs, restoredQuest, decodeBooleans(explored), message);
         }
     }
 
@@ -241,15 +247,30 @@ public final class SaveManager {
     }
 
     static final class QuestData {
-        boolean reportUnlocked;
+        boolean reportIssued;
         boolean slidesExported;
         boolean passIssued;
+        boolean mavenPuzzleSolved;
         boolean completed;
+
+        static QuestData from(QuestState quest) {
+            QuestData data = new QuestData();
+            data.reportIssued = quest.isReportIssued();
+            data.slidesExported = quest.isSlidesExported();
+            data.passIssued = quest.isPassIssued();
+            data.mavenPuzzleSolved = quest.isMavenPuzzleSolved();
+            data.completed = quest.isCompleted();
+            return data;
+        }
+
+        QuestState toQuestState() {
+            return new QuestState(reportIssued, slidesExported, passIssued, mavenPuzzleSolved, completed);
+        }
     }
 
     static final class EntityData {
         List<ItemData> items = Collections.emptyList();
-        List<String> npcs = Collections.emptyList();
+        List<NpcData> npcs = Collections.emptyList();
         List<String> doors = Collections.emptyList();
 
         List<Item> toItems() {
@@ -257,6 +278,16 @@ public final class SaveManager {
             if (items != null) {
                 for (ItemData item : items) {
                     result.add(item.toItem());
+                }
+            }
+            return result;
+        }
+
+        List<Npc> toNpcs() {
+            List<Npc> result = new ArrayList<Npc>();
+            if (npcs != null) {
+                for (NpcData npc : npcs) {
+                    result.add(npc.toNpc());
                 }
             }
             return result;
@@ -280,6 +311,24 @@ public final class SaveManager {
 
         Item toItem() {
             return new Item(id, name, position.toPosition(), collected);
+        }
+    }
+
+    static final class NpcData {
+        String id;
+        String name;
+        PositionData position;
+
+        static NpcData from(Npc npc) {
+            NpcData data = new NpcData();
+            data.id = npc.getId();
+            data.name = npc.getName();
+            data.position = PositionData.from(npc.getPosition());
+            return data;
+        }
+
+        Npc toNpc() {
+            return new Npc(id, name, position.toPosition());
         }
     }
 
