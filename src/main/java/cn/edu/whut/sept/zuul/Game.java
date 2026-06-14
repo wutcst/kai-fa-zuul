@@ -13,56 +13,105 @@
  */
 package cn.edu.whut.sept.zuul;
 
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Random;
+
 public class Game
 {
     private Parser parser;
     private Player player;
     private boolean finished;
+    private List<Room> rooms;
+    private Random random;
 
     public Game()
     {
+        this(new Random());
+    }
+
+    public Game(Random random)
+    {
         createRooms();
+        this.random = random;
         parser = new Parser();
         finished = false;
     }
 
     private void createRooms()
     {
-        Room outside, theater, pub, lab, office;
+        Room outside, theater, pub, lab, office, library, garden, gate, defenseRoom;
 
         // create the rooms
-        outside = new Room("outside the main entrance of the university");
-        theater = new Room("in a lecture theater");
-        pub = new Room("in the campus pub");
-        lab = new Room("in a computing lab");
-        office = new Room("in the computing admin office");
+        outside = new Room("outside", "outside the main entrance of the university");
+        theater = new Room("theater", "in a lecture theater used for project rehearsals");
+        pub = new Room("pub", "in the campus cafe where students trade project tips");
+        lab = new Room("lab", "in a computing lab full of build logs");
+        office = new Room("office", "in the computing admin office");
+        library = new Room("library", "in the quiet library archive");
+        garden = new Room("garden", "in the botanical garden beside the software building");
+        gate = new Room("gate", "in the humming teleport gate room");
+        defenseRoom = new Room("defense", "in the software engineering practice defense classroom");
 
         // initialise room exits
         outside.setExit("east", theater);
         outside.setExit("south", lab);
         outside.setExit("west", pub);
+        outside.setExit("north", library);
 
         theater.setExit("west", outside);
+        theater.setExit("north", gate);
+        theater.setExit("east", defenseRoom);
 
         pub.setExit("east", outside);
+        pub.setExit("south", garden);
 
         lab.setExit("north", outside);
         lab.setExit("east", office);
 
         office.setExit("west", lab);
+        office.setExit("north", gate);
 
-        libraryItems(outside, theater, pub, lab, office);
+        library.setExit("south", outside);
+        library.setExit("east", garden);
+
+        garden.setExit("north", pub);
+        garden.setExit("west", library);
+
+        gate.setExit("south", theater);
+        gate.setExit("west", office);
+        gate.setTeleportRoom(true);
+
+        defenseRoom.setExit("west", theater);
+
+        placeItems(outside, theater, pub, lab, office, library, garden, gate, defenseRoom);
+        rooms = new ArrayList<Room>();
+        rooms.add(outside);
+        rooms.add(theater);
+        rooms.add(pub);
+        rooms.add(lab);
+        rooms.add(office);
+        rooms.add(library);
+        rooms.add(garden);
+        rooms.add(gate);
+        rooms.add(defenseRoom);
 
         player = new Player("adventurer", outside, 8);
     }
 
-    private void libraryItems(Room outside, Room theater, Room pub, Room lab, Room office)
+    private void placeItems(Room outside, Room theater, Room pub, Room lab, Room office,
+                            Room library, Room garden, Room gate, Room defenseRoom)
     {
         outside.addItem(new Item("map", "a campus map with hand-written notes", 1));
-        theater.addItem(new Item("report", "the printed practice report draft", 2));
+        theater.addItem(new Item("slides", "presentation slides for the practice defense", 1));
         pub.addItem(new Item("coin", "a lucky coin for the final presentation", 1));
         lab.addItem(new Item("laptop", "a laptop prepared for the project demo", 4));
+        office.addItem(new Item("pass", "a defense pass signed by the project tutor", 1));
         office.addItem(new Item("cookie", "a magic cookie that improves your carrying capacity", 0, 5));
+        library.addItem(new Item("report", "the printed software engineering practice report", 2));
+        garden.addItem(new Item("flower", "a small flower to calm the team before defense", 1));
+        gate.addItem(new Item("usb", "a USB drive containing the final runnable demo", 1));
+        defenseRoom.addItem(new Item("rubric", "the scoring rubric pinned near the defense desk", 1));
     }
 
     public void play()
@@ -89,7 +138,8 @@ public class Game
     {
         System.out.println();
         System.out.println("Welcome to the World of Zuul!");
-        System.out.println("World of Zuul is a new, incredibly boring adventure game.");
+        System.out.println("World of Zuul is now a campus defense adventure game.");
+        System.out.println("Collect the report, laptop, slides and pass, then reach the defense classroom.");
         System.out.println("Type 'help' if you need help.");
         System.out.println();
         System.out.println(player.getCurrentRoom().getLongDescription());
@@ -116,12 +166,19 @@ public class Game
         }
 
         player.moveTo(nextRoom);
+        teleportIfNeeded();
+        checkWinCondition();
         return true;
     }
 
     public boolean goBack()
     {
-        return player.goBack();
+        boolean moved = player.goBack();
+        if(moved) {
+            teleportIfNeeded();
+            checkWinCondition();
+        }
+        return moved;
     }
 
     public TakeResult takeItem(String itemName)
@@ -167,6 +224,40 @@ public class Game
     public boolean isFinished()
     {
         return finished;
+    }
+
+    private void teleportIfNeeded()
+    {
+        Room currentRoom = player.getCurrentRoom();
+        if(!currentRoom.isTeleportRoom()) {
+            return;
+        }
+
+        Room destination = randomRoomExcept(currentRoom);
+        player.teleportTo(destination);
+        System.out.println("The teleport gate flashes and moves you to another place.");
+    }
+
+    private Room randomRoomExcept(Room excludedRoom)
+    {
+        Room destination = excludedRoom;
+        while(destination == excludedRoom) {
+            destination = rooms.get(random.nextInt(rooms.size()));
+        }
+        return destination;
+    }
+
+    private void checkWinCondition()
+    {
+        if(player.getCurrentRoom().getId().equals("defense")
+                && player.hasItem("report")
+                && player.hasItem("laptop")
+                && player.hasItem("slides")
+                && player.hasItem("pass")) {
+            System.out.println("You enter the defense classroom with every required material.");
+            System.out.println("The team completes the software engineering practice defense successfully!");
+            finished = true;
+        }
     }
 
     public static class TakeResult
