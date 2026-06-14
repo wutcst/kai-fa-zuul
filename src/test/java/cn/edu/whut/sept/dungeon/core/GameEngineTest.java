@@ -15,10 +15,12 @@ public class GameEngineTest {
         GameState state = result.getState();
         assertTrue(state.isStarted());
         assertEquals(Long.valueOf(20260614L), state.getSeed());
-        assertEquals("placeholder-world", state.getWorldStatus());
+        assertEquals("generated", state.getWorldStatus());
+        assertNotNull(state.getWorld());
         assertNotNull(state.getPlayer());
-        assertEquals(0, state.getPlayer().getX());
-        assertEquals(0, state.getPlayer().getY());
+        assertEquals(state.getWorld().getSpawnPosition().getX(), state.getPlayer().getX());
+        assertEquals(state.getWorld().getSpawnPosition().getY(), state.getPlayer().getY());
+        assertTrue(state.getWorld().isWalkable(state.getWorld().getSpawnPosition()));
     }
 
     @Test

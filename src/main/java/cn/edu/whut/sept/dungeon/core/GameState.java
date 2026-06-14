@@ -1,33 +1,38 @@
 package cn.edu.whut.sept.dungeon.core;
 
+import cn.edu.whut.sept.dungeon.world.Position;
+import cn.edu.whut.sept.dungeon.world.World;
+import cn.edu.whut.sept.dungeon.world.WorldGenerator;
+
 public final class GameState {
     private final Long seed;
     private final boolean started;
     private final boolean exited;
     private final boolean saveRequested;
     private final PlayerState player;
-    private final String worldStatus;
+    private final World world;
     private final String message;
 
     private GameState(Long seed, boolean started, boolean exited, boolean saveRequested,
-                      PlayerState player, String worldStatus, String message) {
+                      PlayerState player, World world, String message) {
         this.seed = seed;
         this.started = started;
         this.exited = exited;
         this.saveRequested = saveRequested;
         this.player = player;
-        this.worldStatus = worldStatus;
+        this.world = world;
         this.message = message;
     }
 
     public static GameState initial() {
         return new GameState(null, false, false, false, PlayerState.origin(),
-                "not-created", "Ready.");
+                null, "Ready.");
     }
 
     public static GameState newGame(long seed) {
-        return new GameState(seed, true, false, false, PlayerState.origin(),
-                "placeholder-world", "New game started with seed " + seed + ".");
+        World world = new WorldGenerator().generate(seed);
+        return new GameState(seed, true, false, false, PlayerState.at(world.getSpawnPosition()),
+                world, "New game started with seed " + seed + ".");
     }
 
     public Long getSeed() {
@@ -51,7 +56,11 @@ public final class GameState {
     }
 
     public String getWorldStatus() {
-        return worldStatus;
+        return world == null ? "not-created" : "generated";
+    }
+
+    public World getWorld() {
+        return world;
     }
 
     public String getMessage() {
@@ -59,15 +68,15 @@ public final class GameState {
     }
 
     public GameState withMessage(String nextMessage) {
-        return new GameState(seed, started, exited, saveRequested, player, worldStatus, nextMessage);
+        return new GameState(seed, started, exited, saveRequested, player, world, nextMessage);
     }
 
     public GameState markExited() {
-        return new GameState(seed, started, true, saveRequested, player, worldStatus, message);
+        return new GameState(seed, started, true, saveRequested, player, world, message);
     }
 
     public GameState markSaveRequested() {
-        return new GameState(seed, started, exited, true, player, worldStatus, message);
+        return new GameState(seed, started, exited, true, player, world, message);
     }
 
     public static final class PlayerState {
@@ -83,6 +92,10 @@ public final class GameState {
 
         public static PlayerState origin() {
             return new PlayerState(0, 0, Direction.SOUTH);
+        }
+
+        public static PlayerState at(Position position) {
+            return new PlayerState(position.getX(), position.getY(), Direction.SOUTH);
         }
 
         public int getX() {
