@@ -54,7 +54,7 @@ public class GameEngine {
                 state = state.withMessage("No saved game.");
                 break;
             case MOVE:
-                state = state.withMessage("Movement is not implemented yet: " + command.getDirection().name());
+                state = state.movePlayer(command.getDirection());
                 break;
             case INTERACT:
                 state = state.withMessage("Interaction is not implemented yet.");
