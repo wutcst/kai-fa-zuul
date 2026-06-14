@@ -14,6 +14,7 @@ public class Room
     private String description;
     private HashMap<String, Room> exits;        // stores exits of this room.
     private List<Item> items;
+    private List<Npc> npcs;
     private boolean teleportRoom;
 
     public Room(String description)
@@ -27,6 +28,7 @@ public class Room
         this.id = id;
         exits = new HashMap<String, Room>();
         items = new ArrayList<Item>();
+        npcs = new ArrayList<Npc>();
         teleportRoom = false;
     }
 
@@ -47,7 +49,7 @@ public class Room
 
     public String getLongDescription()
     {
-        String text = "You are " + description + ".\n" + getExitString() + "\n" + getItemString();
+        String text = "You are " + description + ".\n" + getExitString() + "\n" + getItemString() + "\n" + getNpcString();
         if(teleportRoom) {
             text += "\nA teleport gate is humming in this room.";
         }
@@ -73,6 +75,19 @@ public class Room
         StringBuilder builder = new StringBuilder("Items:");
         for(Item item : items) {
             builder.append("\n - ").append(item.getDisplayText());
+        }
+        return builder.toString();
+    }
+
+    private String getNpcString()
+    {
+        if(npcs.isEmpty()) {
+            return "People: none";
+        }
+
+        StringBuilder builder = new StringBuilder("People:");
+        for(Npc npc : npcs) {
+            builder.append("\n - ").append(npc.getDisplayText());
         }
         return builder.toString();
     }
@@ -127,6 +142,30 @@ public class Room
         return Collections.unmodifiableList(items);
     }
 
+    public void addNpc(Npc npc)
+    {
+        npcs.add(npc);
+    }
+
+    public Npc findNpc(String npcName)
+    {
+        if(npcName == null) {
+            return null;
+        }
+
+        for(Npc npc : npcs) {
+            if(npc.getName().equals(npcName.toLowerCase())) {
+                return npc;
+            }
+        }
+        return null;
+    }
+
+    public List<Npc> getNpcs()
+    {
+        return Collections.unmodifiableList(npcs);
+    }
+
     public boolean isTeleportRoom()
     {
         return teleportRoom;
@@ -137,4 +176,3 @@ public class Room
         this.teleportRoom = teleportRoom;
     }
 }
-

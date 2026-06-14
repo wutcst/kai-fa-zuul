@@ -18,6 +18,7 @@ public class CommandWords
         commands.put("items", new ItemsCommand());
         commands.put("look", new LookCommand());
         commands.put("quit", new QuitCommand());
+        commands.put("talk", new TalkCommand());
         commands.put("take", new TakeCommand());
     }
 

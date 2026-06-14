@@ -85,6 +85,7 @@ public class Game
         defenseRoom.setExit("west", theater);
 
         placeItems(outside, theater, pub, lab, office, library, garden, gate, defenseRoom);
+        placeNpcs(theater, lab, library, defenseRoom);
         rooms = new ArrayList<Room>();
         rooms.add(outside);
         rooms.add(theater);
@@ -112,6 +113,18 @@ public class Game
         garden.addItem(new Item("flower", "a small flower to calm the team before defense", 1));
         gate.addItem(new Item("usb", "a USB drive containing the final runnable demo", 1));
         defenseRoom.addItem(new Item("rubric", "the scoring rubric pinned near the defense desk", 1));
+    }
+
+    private void placeNpcs(Room theater, Room lab, Room library, Room defenseRoom)
+    {
+        library.addNpc(new Npc("librarian", "the library archivist guarding old project reports",
+                "Librarian: The printed report is shelved here. Bring it to the defense classroom."));
+        lab.addNpc(new Npc("assistant", "the lab assistant watching the build machine",
+                "Assistant: The laptop is ready for your demo. Do not forget the signed pass from the office."));
+        theater.addNpc(new Npc("mentor", "a senior student rehearsing the presentation",
+                "Mentor: Pick up the slides here, then enter the defense room only after your materials are complete."));
+        defenseRoom.addNpc(new Npc("teacher", "the teacher waiting for the final defense",
+                "Teacher: I need to see your report, laptop, slides and pass before the defense can begin."));
     }
 
     public void play()
@@ -229,6 +242,26 @@ public class Game
     public boolean isFinished()
     {
         return finished;
+    }
+
+    public String talkTo(String npcName)
+    {
+        Npc npc = player.getCurrentRoom().findNpc(npcName);
+        if(npc == null) {
+            return null;
+        }
+
+        if(npc.getName().equals("librarian") && player.hasItem("report")) {
+            return "Librarian: Good, you have the report. Now secure the demo laptop and defense pass.";
+        }
+        if(npc.getName().equals("assistant") && player.hasItem("laptop")) {
+            return "Assistant: Your demo laptop is ready. The admin office has the pass, and the theater has the slides.";
+        }
+        if(npc.getName().equals("teacher") && hasDefenseMaterials()) {
+            return "Teacher: Your materials are complete. Step forward and begin the defense.";
+        }
+
+        return npc.getDefaultDialogue();
     }
 
     public String getQuestStatus()
