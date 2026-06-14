@@ -85,6 +85,16 @@ public final class GameState {
         return isMarked(visible, x, y);
     }
 
+    public VisibilityState getVisibilityState(int x, int y) {
+        if (isVisible(x, y)) {
+            return VisibilityState.VISIBLE;
+        }
+        if (isExplored(x, y)) {
+            return VisibilityState.SEEN;
+        }
+        return VisibilityState.UNSEEN;
+    }
+
     public boolean[][] copyExplored() {
         return copyGrid(explored);
     }

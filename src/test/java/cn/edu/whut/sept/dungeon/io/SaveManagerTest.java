@@ -2,6 +2,7 @@ package cn.edu.whut.sept.dungeon.io;
 
 import cn.edu.whut.sept.dungeon.core.GameEngine;
 import cn.edu.whut.sept.dungeon.core.GameState;
+import cn.edu.whut.sept.dungeon.core.VisibilityState;
 import org.junit.Test;
 
 import java.io.File;
@@ -39,6 +40,8 @@ public class SaveManagerTest {
         assertEquals(saved.getWorld().getDefenseHallPosition(), loaded.getWorld().getDefenseHallPosition());
         assertEquals(saved.getExploredCount(), loaded.getExploredCount());
         assertTrue(loaded.isExplored(saved.getPlayer().getX(), saved.getPlayer().getY()));
+        assertEquals(VisibilityState.VISIBLE,
+                loaded.getVisibilityState(loaded.getPlayer().getX(), loaded.getPlayer().getY()));
         assertEquals("Loaded saved game.", loaded.getMessage());
     }
 

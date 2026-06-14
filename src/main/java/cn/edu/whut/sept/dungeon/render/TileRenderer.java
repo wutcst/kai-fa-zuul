@@ -1,6 +1,7 @@
 package cn.edu.whut.sept.dungeon.render;
 
 import cn.edu.whut.sept.dungeon.core.GameState;
+import cn.edu.whut.sept.dungeon.core.VisibilityState;
 import cn.edu.whut.sept.dungeon.world.Position;
 import cn.edu.whut.sept.dungeon.world.Tile;
 import cn.edu.whut.sept.dungeon.world.World;
@@ -22,21 +23,25 @@ public final class TileRenderer {
         if (state == null || state.getWorld() == null) {
             return UNEXPLORED_COLOR;
         }
-        if (!state.isExplored(x, y)) {
-            return UNEXPLORED_COLOR;
-        }
         World world = state.getWorld();
         Tile tile = world.getTile(x, y);
-        if (!state.isVisible(x, y)) {
-            return tile == Tile.WALL ? SEEN_WALL_COLOR : SEEN_FLOOR_COLOR;
+        VisibilityState visibilityState = state.getVisibilityState(x, y);
+        switch (visibilityState) {
+            case UNSEEN:
+                return UNEXPLORED_COLOR;
+            case SEEN:
+                return tile == Tile.WALL ? SEEN_WALL_COLOR : SEEN_FLOOR_COLOR;
+            case VISIBLE:
+                if (isPlayerAt(state, x, y)) {
+                    return PLAYER_COLOR;
+                }
+                if (isDefenseHallAt(world, x, y)) {
+                    return DEFENSE_HALL_COLOR;
+                }
+                return tile == Tile.WALL ? WALL_COLOR : FLOOR_COLOR;
+            default:
+                return UNEXPLORED_COLOR;
         }
-        if (isPlayerAt(state, x, y)) {
-            return PLAYER_COLOR;
-        }
-        if (isDefenseHallAt(world, x, y)) {
-            return DEFENSE_HALL_COLOR;
-        }
-        return tile == Tile.WALL ? WALL_COLOR : FLOOR_COLOR;
     }
 
     public void draw(GameState state, Graphics2D graphics) {
