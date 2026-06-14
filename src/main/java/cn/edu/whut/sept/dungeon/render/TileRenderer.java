@@ -1,0 +1,63 @@
+package cn.edu.whut.sept.dungeon.render;
+
+import cn.edu.whut.sept.dungeon.core.GameState;
+import cn.edu.whut.sept.dungeon.world.Position;
+import cn.edu.whut.sept.dungeon.world.Tile;
+import cn.edu.whut.sept.dungeon.world.World;
+
+import java.awt.Color;
+import java.awt.Graphics2D;
+
+public final class TileRenderer {
+    public static final int TILE_SIZE = 16;
+    public static final Color UNEXPLORED_COLOR = Color.BLACK;
+    public static final Color SEEN_WALL_COLOR = new Color(34, 38, 45);
+    public static final Color SEEN_FLOOR_COLOR = new Color(45, 48, 53);
+    public static final Color WALL_COLOR = new Color(71, 78, 90);
+    public static final Color FLOOR_COLOR = new Color(184, 178, 158);
+    public static final Color PLAYER_COLOR = new Color(70, 130, 230);
+    public static final Color DEFENSE_HALL_COLOR = new Color(208, 180, 75);
+
+    public Color colorFor(GameState state, int x, int y) {
+        if (state == null || state.getWorld() == null) {
+            return UNEXPLORED_COLOR;
+        }
+        if (!state.isExplored(x, y)) {
+            return UNEXPLORED_COLOR;
+        }
+        World world = state.getWorld();
+        Tile tile = world.getTile(x, y);
+        if (!state.isVisible(x, y)) {
+            return tile == Tile.WALL ? SEEN_WALL_COLOR : SEEN_FLOOR_COLOR;
+        }
+        if (isPlayerAt(state, x, y)) {
+            return PLAYER_COLOR;
+        }
+        if (isDefenseHallAt(world, x, y)) {
+            return DEFENSE_HALL_COLOR;
+        }
+        return tile == Tile.WALL ? WALL_COLOR : FLOOR_COLOR;
+    }
+
+    public void draw(GameState state, Graphics2D graphics) {
+        if (state == null || state.getWorld() == null) {
+            return;
+        }
+        World world = state.getWorld();
+        for (int y = 0; y < world.getHeight(); y++) {
+            for (int x = 0; x < world.getWidth(); x++) {
+                graphics.setColor(colorFor(state, x, y));
+                graphics.fillRect(x * TILE_SIZE, y * TILE_SIZE, TILE_SIZE, TILE_SIZE);
+            }
+        }
+    }
+
+    private boolean isPlayerAt(GameState state, int x, int y) {
+        return state.getPlayer().getX() == x && state.getPlayer().getY() == y;
+    }
+
+    private boolean isDefenseHallAt(World world, int x, int y) {
+        Position defenseHall = world.getDefenseHallPosition();
+        return defenseHall.getX() == x && defenseHall.getY() == y;
+    }
+}
