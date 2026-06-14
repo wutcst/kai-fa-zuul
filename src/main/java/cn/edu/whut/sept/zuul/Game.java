@@ -140,6 +140,7 @@ public class Game
         System.out.println("Welcome to the World of Zuul!");
         System.out.println("World of Zuul is now a campus defense adventure game.");
         System.out.println("Collect the report, laptop, slides and pass, then reach the defense classroom.");
+        System.out.println(getQuestStatus());
         System.out.println("Type 'help' if you need help.");
         System.out.println();
         System.out.println(player.getCurrentRoom().getLongDescription());
@@ -163,6 +164,10 @@ public class Game
         Room nextRoom = player.getCurrentRoom().getExit(direction);
         if(nextRoom == null) {
             return false;
+        }
+
+        if(!canEnter(nextRoom)) {
+            return true;
         }
 
         player.moveTo(nextRoom);
@@ -226,6 +231,68 @@ public class Game
         return finished;
     }
 
+    public String getQuestStatus()
+    {
+        StringBuilder builder = new StringBuilder("Defense checklist:");
+        builder.append("\n - Report: ").append(player.hasItem("report") ? "ready" : "missing");
+        builder.append("\n - Demo laptop: ").append(player.hasItem("laptop") ? "ready" : "missing");
+        builder.append("\n - Slides: ").append(player.hasItem("slides") ? "ready" : "missing");
+        builder.append("\n - Defense pass: ").append(player.hasItem("pass") ? "ready" : "missing");
+        builder.append("\n - Final goal: enter the defense classroom with all required materials.");
+        return builder.toString();
+    }
+
+    private boolean canEnter(Room room)
+    {
+        if(room.getId().equals("defense")) {
+            if(hasDefenseMaterials()) {
+                return true;
+            }
+
+            System.out.println("The defense classroom is not ready for you yet.");
+            System.out.println("You still need: " + missingDefenseMaterials() + ".");
+            return false;
+        }
+
+        if(room.getId().equals("gate") && !player.hasItem("usb")) {
+            System.out.println("The teleport gate refuses to start without the final demo USB.");
+            System.out.println("Find the USB drive before using the gate.");
+            return false;
+        }
+
+        return true;
+    }
+
+    private boolean hasDefenseMaterials()
+    {
+        return player.hasItem("report")
+                && player.hasItem("laptop")
+                && player.hasItem("slides")
+                && player.hasItem("pass");
+    }
+
+    private String missingDefenseMaterials()
+    {
+        StringBuilder builder = new StringBuilder();
+        appendMissing(builder, "report");
+        appendMissing(builder, "laptop");
+        appendMissing(builder, "slides");
+        appendMissing(builder, "pass");
+        return builder.toString();
+    }
+
+    private void appendMissing(StringBuilder builder, String itemName)
+    {
+        if(player.hasItem(itemName)) {
+            return;
+        }
+
+        if(builder.length() > 0) {
+            builder.append(", ");
+        }
+        builder.append(itemName);
+    }
+
     private void teleportIfNeeded()
     {
         Room currentRoom = player.getCurrentRoom();
@@ -250,11 +317,9 @@ public class Game
     private void checkWinCondition()
     {
         if(player.getCurrentRoom().getId().equals("defense")
-                && player.hasItem("report")
-                && player.hasItem("laptop")
-                && player.hasItem("slides")
-                && player.hasItem("pass")) {
+                && hasDefenseMaterials()) {
             System.out.println("You enter the defense classroom with every required material.");
+            System.out.println(getQuestStatus());
             System.out.println("The team completes the software engineering practice defense successfully!");
             finished = true;
         }
