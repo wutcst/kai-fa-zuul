@@ -41,14 +41,18 @@ public final class InputCommand {
     public static InputCommand fromKey(char input) {
         char lowerInput = Character.toLowerCase(input);
         switch (lowerInput) {
-            case 'l':
+            case 'o':
                 return new InputCommand(Type.LOAD, null, 0L, null, lowerInput);
+            case 'k':
             case 'w':
                 return new InputCommand(Type.MOVE, Direction.NORTH, 0L, null, lowerInput);
+            case 'h':
             case 'a':
                 return new InputCommand(Type.MOVE, Direction.WEST, 0L, null, lowerInput);
+            case 'j':
             case 's':
                 return new InputCommand(Type.MOVE, Direction.SOUTH, 0L, null, lowerInput);
+            case 'l':
             case 'd':
                 return new InputCommand(Type.MOVE, Direction.EAST, 0L, null, lowerInput);
             case 'e':
