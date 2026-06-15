@@ -5,6 +5,7 @@ import cn.edu.whut.sept.dungeon.world.World;
 import cn.edu.whut.sept.dungeon.entity.Enemy;
 import cn.edu.whut.sept.dungeon.entity.Item;
 import cn.edu.whut.sept.dungeon.entity.Npc;
+import cn.edu.whut.sept.dungeon.entity.Trap;
 import org.junit.Test;
 
 import java.util.ArrayDeque;
@@ -380,6 +381,67 @@ public class GameEngineTest {
     }
 
     @Test
+    public void trapsAreGeneratedDeterministicallyForSameSeed() {
+        GameState first = GameState.newGame(123L);
+        GameState second = GameState.newGame(123L);
+
+        assertEquals(3, first.getTraps().size());
+        assertEquals(first.getTraps().size(), second.getTraps().size());
+        for (int i = 0; i < first.getTraps().size(); i++) {
+            assertEquals(first.getTraps().get(i).getType(), second.getTraps().get(i).getType());
+            assertEquals(first.getTraps().get(i).getPosition(), second.getTraps().get(i).getPosition());
+        }
+    }
+
+    @Test
+    public void damageTrapHurtsPlayerAndMarksTrapTriggered() {
+        GameState state = GameState.newGame(123L);
+        Trap trap = findTrap(state, Trap.DAMAGE);
+
+        GameState triggered = stateAfterPath(state, trap.getPosition());
+
+        assertEquals(25, triggered.getPlayer().getHp());
+        assertTrue(findTrapById(triggered, trap.getId()).isTriggered());
+        assertTrue(triggered.getMessage().contains("Damage trap triggered"));
+    }
+
+    @Test
+    public void teleportTrapReturnsPlayerToEntrance() {
+        GameState state = GameState.newGame(123L);
+        Trap trap = findTrap(state, Trap.TELEPORT);
+
+        GameState triggered = stateAfterPath(state, trap.getPosition());
+
+        assertEquals(triggered.getWorld().getSpawnPosition(), triggered.getPlayer().getPosition());
+        assertTrue(findTrapById(triggered, trap.getId()).isTriggered());
+        assertTrue(triggered.getMessage().contains("Teleport trap triggered"));
+    }
+
+    @Test
+    public void weaknessTrapLowersAttack() {
+        GameState state = GameState.newGame(123L);
+        Trap trap = findTrap(state, Trap.WEAKNESS);
+
+        GameState triggered = stateAfterPath(state, trap.getPosition());
+
+        assertEquals(3, triggered.getPlayer().getAtk());
+        assertTrue(findTrapById(triggered, trap.getId()).isTriggered());
+        assertTrue(triggered.getMessage().contains("Weakness trap triggered"));
+    }
+
+    @Test
+    public void newDepthRegeneratesTraps() {
+        GameState state = GameState.newGame(123L);
+        Trap firstTrap = state.getTraps().get(0);
+
+        GameState nextDepth = stateAfterPath(state, state.getWorld().getStairsPosition()).interact();
+
+        assertEquals(2, nextDepth.getDepth());
+        assertFalse(firstTrap.getPosition().equals(nextDepth.getTraps().get(0).getPosition()));
+        assertFalse(nextDepth.getTraps().isEmpty());
+    }
+
+    @Test
     public void defenseDoorRejectsMissingMaterials() {
         GameEngine engine = new GameEngine();
         engine.handleInput(InputCommand.newGame(123L));
@@ -485,7 +547,8 @@ public class GameEngineTest {
             if (state.getWorld().contains(candidate.getX(), candidate.getY())
                     && state.getWorld().isWalkable(candidate)
                     && !candidate.equals(state.getPlayer().getPosition())
-                    && state.enemyAt(candidate) == null) {
+                    && state.enemyAt(candidate) == null
+                    && state.trapAt(candidate) == null) {
                 try {
                     pathTo(state, candidate);
                     return candidate;
@@ -553,7 +616,8 @@ public class GameEngineTest {
                 if (world.contains(next.getX(), next.getY())
                         && !visited[next.getY()][next.getX()]
                         && world.isWalkable(next)
-                        && state.enemyAt(next) == null) {
+                        && state.enemyAt(next) == null
+                        && state.trapAt(next) == null) {
                     visited[next.getY()][next.getX()] = true;
                     queue.add(new PathNode(next, current.path + keyFor(direction)));
                 }
@@ -599,6 +663,24 @@ public class GameEngineTest {
         throw new AssertionError("Missing enemy: " + enemyId);
     }
 
+    private Trap findTrap(GameState state, String type) {
+        for (Trap trap : state.getTraps()) {
+            if (trap.getType().equals(type)) {
+                return trap;
+            }
+        }
+        throw new AssertionError("Missing trap type: " + type);
+    }
+
+    private Trap findTrapById(GameState state, String trapId) {
+        for (Trap trap : state.getTraps()) {
+            if (trap.getId().equals(trapId)) {
+                return trap;
+            }
+        }
+        throw new AssertionError("Missing trap: " + trapId);
+    }
+
     private Position nearbyWalkableTile(GameState state, Position target, int maxDistance) {
         World world = state.getWorld();
         Position start = state.getPlayer().getPosition();
@@ -621,7 +703,8 @@ public class GameEngineTest {
                 if (world.contains(next.getX(), next.getY())
                         && !visited[next.getY()][next.getX()]
                         && world.isWalkable(next)
-                        && state.enemyAt(next) == null) {
+                        && state.enemyAt(next) == null
+                        && (next.equals(target) || state.trapAt(next) == null)) {
                     visited[next.getY()][next.getX()] = true;
                     queue.add(new PathNode(next, current.path + keyFor(direction)));
                 }
@@ -688,7 +771,8 @@ public class GameEngineTest {
                 if (world.contains(next.getX(), next.getY())
                         && !visited[next.getY()][next.getX()]
                         && world.isWalkable(next)
-                        && state.enemyAt(next) == null) {
+                        && state.enemyAt(next) == null
+                        && (next.equals(target) || state.trapAt(next) == null)) {
                     visited[next.getY()][next.getX()] = true;
                     queue.add(new PathNode(next, current.path + keyFor(direction)));
                 }

@@ -7,6 +7,7 @@ import cn.edu.whut.sept.dungeon.entity.Enemy;
 import cn.edu.whut.sept.dungeon.entity.Inventory;
 import cn.edu.whut.sept.dungeon.entity.Item;
 import cn.edu.whut.sept.dungeon.entity.Npc;
+import cn.edu.whut.sept.dungeon.entity.Trap;
 import cn.edu.whut.sept.dungeon.quest.QuestState;
 import cn.edu.whut.sept.dungeon.world.Corridor;
 import cn.edu.whut.sept.dungeon.world.Position;
@@ -111,6 +112,10 @@ public final class SaveManager {
             for (Npc npc : state.getNpcs()) {
                 data.entities.npcs.add(NpcData.from(npc));
             }
+            data.entities.traps = new ArrayList<TrapData>();
+            for (Trap trap : state.getTraps()) {
+                data.entities.traps.add(TrapData.from(trap));
+            }
             data.explored = encodeBooleans(state.copyExplored());
             data.message = state.getMessage();
             return data;
@@ -124,13 +129,14 @@ public final class SaveManager {
             List<Item> restoredItems = entities == null ? Collections.<Item>emptyList() : entities.toItems();
             List<Enemy> restoredEnemies = entities == null ? Collections.<Enemy>emptyList() : entities.toEnemies();
             List<Npc> restoredNpcs = entities == null ? Collections.<Npc>emptyList() : entities.toNpcs();
+            List<Trap> restoredTraps = entities == null ? Collections.<Trap>emptyList() : entities.toTraps();
             QuestState restoredQuest = quest == null ? QuestState.initial() : quest.toQuestState();
             GameStatus restoredStatus = status == null
                     ? (restoredQuest.isCompleted() ? GameStatus.COMPLETED : GameStatus.PLAYING)
                     : status;
             int restoredDepth = depth <= 0 ? 1 : depth;
             return GameState.restored(seed, restoredDepth, started, exited, saveRequested, restoredStatus, restoredPlayer, restoredWorld,
-                    Inventory.of(inventory), restoredItems, restoredEnemies, restoredNpcs, restoredQuest,
+                    Inventory.of(inventory), restoredItems, restoredEnemies, restoredNpcs, restoredTraps, restoredQuest,
                     decodeBooleans(explored), message);
         }
     }
@@ -317,6 +323,7 @@ public final class SaveManager {
         List<ItemData> items = Collections.emptyList();
         List<EnemyData> enemies = Collections.emptyList();
         List<NpcData> npcs = Collections.emptyList();
+        List<TrapData> traps = Collections.emptyList();
         List<String> doors = Collections.emptyList();
 
         List<Item> toItems() {
@@ -344,6 +351,16 @@ public final class SaveManager {
             if (npcs != null) {
                 for (NpcData npc : npcs) {
                     result.add(npc.toNpc());
+                }
+            }
+            return result;
+        }
+
+        List<Trap> toTraps() {
+            List<Trap> result = new ArrayList<Trap>();
+            if (traps != null) {
+                for (TrapData trap : traps) {
+                    result.add(trap.toTrap());
                 }
             }
             return result;
@@ -413,6 +430,26 @@ public final class SaveManager {
 
         Npc toNpc() {
             return new Npc(id, name, position.toPosition());
+        }
+    }
+
+    static final class TrapData {
+        String id;
+        String type;
+        PositionData position;
+        boolean triggered;
+
+        static TrapData from(Trap trap) {
+            TrapData data = new TrapData();
+            data.id = trap.getId();
+            data.type = trap.getType();
+            data.position = PositionData.from(trap.getPosition());
+            data.triggered = trap.isTriggered();
+            return data;
+        }
+
+        Trap toTrap() {
+            return new Trap(id, type, position.toPosition(), triggered);
         }
     }
 

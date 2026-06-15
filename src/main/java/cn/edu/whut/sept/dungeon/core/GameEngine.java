@@ -1,6 +1,7 @@
 package cn.edu.whut.sept.dungeon.core;
 
 import cn.edu.whut.sept.dungeon.entity.Enemy;
+import cn.edu.whut.sept.dungeon.entity.Trap;
 import cn.edu.whut.sept.dungeon.io.SaveManager;
 
 /**
@@ -162,7 +163,7 @@ public class GameEngine {
         if (questChanged(before, after)) {
             return true;
         }
-        return enemiesChanged(before, after);
+        return enemiesChanged(before, after) || trapsChanged(before, after);
     }
 
     private boolean questChanged(GameState before, GameState after) {
@@ -183,6 +184,22 @@ public class GameEngine {
             if (!left.getId().equals(right.getId())
                     || left.getHp() != right.getHp()
                     || left.isAlive() != right.isAlive()
+                    || !left.getPosition().equals(right.getPosition())) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private boolean trapsChanged(GameState before, GameState after) {
+        if (before.getTraps().size() != after.getTraps().size()) {
+            return true;
+        }
+        for (int i = 0; i < before.getTraps().size(); i++) {
+            Trap left = before.getTraps().get(i);
+            Trap right = after.getTraps().get(i);
+            if (!left.getId().equals(right.getId())
+                    || left.isTriggered() != right.isTriggered()
                     || !left.getPosition().equals(right.getPosition())) {
                 return true;
             }

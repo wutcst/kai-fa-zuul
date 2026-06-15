@@ -8,6 +8,7 @@ import cn.edu.whut.sept.dungeon.core.InputCommand;
 import cn.edu.whut.sept.dungeon.core.VisibilityState;
 import cn.edu.whut.sept.dungeon.entity.Enemy;
 import cn.edu.whut.sept.dungeon.entity.Item;
+import cn.edu.whut.sept.dungeon.entity.Trap;
 import cn.edu.whut.sept.dungeon.world.Position;
 import cn.edu.whut.sept.dungeon.world.World;
 import org.junit.Test;
@@ -175,6 +176,22 @@ public class SaveManagerTest {
         assertEquals(secondDepth.getWorld().toTileString(), loaded.getWorld().toTileString());
     }
 
+    @Test
+    public void saveAndLoadRestoresTriggeredTraps() {
+        File saveFile = saveFile("traps");
+        SaveManager saveManager = new SaveManager(saveFile);
+        GameState state = GameState.newGame(123L);
+        Trap trap = findTrap(state, Trap.DAMAGE);
+        GameState triggered = stateAfterPath(state, trap.getPosition());
+
+        saveManager.save(triggered);
+        GameState loaded = new GameEngine(saveManager).playWithInputString("o").getState();
+
+        assertEquals(triggered.getTraps().size(), loaded.getTraps().size());
+        assertTrue(findTrapById(loaded, trap.getId()).isTriggered());
+        assertEquals(triggered.getPlayer().getHp(), loaded.getPlayer().getHp());
+    }
+
     private File saveFile(String name) {
         File directory = new File("target/test-saves");
         if (!directory.exists()) {
@@ -203,6 +220,24 @@ public class SaveManagerTest {
             }
         }
         throw new AssertionError("Missing enemy: " + enemyId);
+    }
+
+    private Trap findTrap(GameState state, String type) {
+        for (Trap trap : state.getTraps()) {
+            if (trap.getType().equals(type)) {
+                return trap;
+            }
+        }
+        throw new AssertionError("Missing trap type: " + type);
+    }
+
+    private Trap findTrapById(GameState state, String trapId) {
+        for (Trap trap : state.getTraps()) {
+            if (trap.getId().equals(trapId)) {
+                return trap;
+            }
+        }
+        throw new AssertionError("Missing trap: " + trapId);
     }
 
     private void moveTo(GameEngine engine, Position target) {
@@ -246,7 +281,8 @@ public class SaveManagerTest {
                 if (world.contains(next.getX(), next.getY())
                         && !visited[next.getY()][next.getX()]
                         && world.isWalkable(next)
-                        && state.enemyAt(next) == null) {
+                        && state.enemyAt(next) == null
+                        && (next.equals(target) || state.trapAt(next) == null)) {
                     visited[next.getY()][next.getX()] = true;
                     queue.add(new PathNode(next, current.path + keyFor(direction)));
                 }
@@ -267,7 +303,8 @@ public class SaveManagerTest {
             if (state.getWorld().contains(candidate.getX(), candidate.getY())
                     && state.getWorld().isWalkable(candidate)
                     && !candidate.equals(state.getPlayer().getPosition())
-                    && state.enemyAt(candidate) == null) {
+                    && state.enemyAt(candidate) == null
+                    && state.trapAt(candidate) == null) {
                 try {
                     pathTo(state, candidate);
                     return candidate;

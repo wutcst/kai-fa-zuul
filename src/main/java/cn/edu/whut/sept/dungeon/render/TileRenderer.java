@@ -5,6 +5,7 @@ import cn.edu.whut.sept.dungeon.core.VisibilityState;
 import cn.edu.whut.sept.dungeon.entity.Enemy;
 import cn.edu.whut.sept.dungeon.entity.Item;
 import cn.edu.whut.sept.dungeon.entity.Npc;
+import cn.edu.whut.sept.dungeon.entity.Trap;
 import cn.edu.whut.sept.dungeon.world.Position;
 import cn.edu.whut.sept.dungeon.world.Tile;
 import cn.edu.whut.sept.dungeon.world.World;
@@ -25,6 +26,7 @@ public final class TileRenderer {
     public static final Color NPC_COLOR = new Color(178, 105, 210);
     public static final Color ENEMY_COLOR = new Color(200, 70, 70);
     public static final Color STAIRS_COLOR = new Color(110, 210, 220);
+    public static final Color TRAP_COLOR = new Color(230, 120, 45);
 
     public Color colorFor(GameState state, int x, int y) {
         if (state == null || state.getWorld() == null) {
@@ -50,6 +52,9 @@ public final class TileRenderer {
                 }
                 if (isNpcAt(state, x, y)) {
                     return NPC_COLOR;
+                }
+                if (isTrapAt(state, x, y)) {
+                    return TRAP_COLOR;
                 }
                 if (isStairsAt(state, x, y)) {
                     return STAIRS_COLOR;
@@ -111,6 +116,15 @@ public final class TileRenderer {
     private boolean isNpcAt(GameState state, int x, int y) {
         for (Npc npc : state.getNpcs()) {
             if (npc.getPosition().getX() == x && npc.getPosition().getY() == y) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private boolean isTrapAt(GameState state, int x, int y) {
+        for (Trap trap : state.getTraps()) {
+            if (!trap.isTriggered() && trap.getPosition().getX() == x && trap.getPosition().getY() == y) {
                 return true;
             }
         }

@@ -6,6 +6,7 @@ import cn.edu.whut.sept.dungeon.core.InputCommand;
 import cn.edu.whut.sept.dungeon.core.VisibilityState;
 import cn.edu.whut.sept.dungeon.core.Direction;
 import cn.edu.whut.sept.dungeon.entity.Enemy;
+import cn.edu.whut.sept.dungeon.entity.Trap;
 import cn.edu.whut.sept.dungeon.world.Position;
 import cn.edu.whut.sept.dungeon.world.World;
 import org.junit.Test;
@@ -67,6 +68,17 @@ public class TileRendererTest {
                 renderer.colorFor(nearStairs, stairs.getX(), stairs.getY()));
     }
 
+    @Test
+    public void rendererUsesTrapColorForVisibleUntriggeredTrap() {
+        GameState state = new GameEngine().playWithInputString("n123s").getState();
+        Trap trap = state.getTraps().get(0);
+        GameState nearTrap = stateAfterPath(state, adjacentWalkableTile(state, trap.getPosition()));
+        TileRenderer renderer = new TileRenderer();
+
+        assertEquals(TileRenderer.TRAP_COLOR,
+                renderer.colorFor(nearTrap, trap.getPosition().getX(), trap.getPosition().getY()));
+    }
+
     private GameState moveUntilSpawnIsSeen(GameEngine engine) {
         GameState state = engine.getState();
         String path = pathBeyondVision(state);
@@ -95,7 +107,8 @@ public class TileRendererTest {
                         current.position.getY() + direction.getDy());
                 if (world.contains(next.getX(), next.getY())
                         && !visited[next.getY()][next.getX()]
-                        && world.isWalkable(next)) {
+                        && world.isWalkable(next)
+                        && state.trapAt(next) == null) {
                     visited[next.getY()][next.getX()] = true;
                     queue.add(new PathNode(next, current.path + keyFor(direction)));
                 }
@@ -145,7 +158,8 @@ public class TileRendererTest {
                 if (world.contains(next.getX(), next.getY())
                         && !visited[next.getY()][next.getX()]
                         && world.isWalkable(next)
-                        && state.enemyAt(next) == null) {
+                        && state.enemyAt(next) == null
+                        && (next.equals(target) || state.trapAt(next) == null)) {
                     visited[next.getY()][next.getX()] = true;
                     queue.add(new PathNode(next, current.path + keyFor(direction)));
                 }
@@ -161,7 +175,8 @@ public class TileRendererTest {
             if (state.getWorld().contains(candidate.getX(), candidate.getY())
                     && state.getWorld().isWalkable(candidate)
                     && !candidate.equals(state.getPlayer().getPosition())
-                    && state.enemyAt(candidate) == null) {
+                    && state.enemyAt(candidate) == null
+                    && state.trapAt(candidate) == null) {
                 return candidate;
             }
         }
