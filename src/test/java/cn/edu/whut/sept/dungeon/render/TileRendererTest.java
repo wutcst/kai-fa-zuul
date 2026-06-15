@@ -6,6 +6,8 @@ import cn.edu.whut.sept.dungeon.core.InputCommand;
 import cn.edu.whut.sept.dungeon.core.VisibilityState;
 import cn.edu.whut.sept.dungeon.core.Direction;
 import cn.edu.whut.sept.dungeon.entity.Enemy;
+import cn.edu.whut.sept.dungeon.entity.Item;
+import cn.edu.whut.sept.dungeon.entity.Npc;
 import cn.edu.whut.sept.dungeon.entity.Trap;
 import cn.edu.whut.sept.dungeon.world.Position;
 import cn.edu.whut.sept.dungeon.world.World;
@@ -77,6 +79,38 @@ public class TileRendererTest {
 
         assertEquals(TileRenderer.TRAP_COLOR,
                 renderer.colorFor(nearTrap, trap.getPosition().getX(), trap.getPosition().getY()));
+    }
+
+    @Test
+    public void rendererProvidesDistinctPixelGlyphsForGameObjects() {
+        TileRenderer renderer = new TileRenderer();
+        GameState state = new GameEngine().playWithInputString("n123sl").getState();
+        assertEquals(">", renderer.glyphFor(state, state.getPlayer().getX(), state.getPlayer().getY()));
+
+        Enemy enemy = state.getEnemies().get(0);
+        GameState nearEnemy = stateAfterPath(state, adjacentWalkableTile(state, enemy.getPosition()));
+        assertEquals("!", renderer.glyphFor(nearEnemy, enemy.getPosition().getX(), enemy.getPosition().getY()));
+
+        Item item = findItem(state, "small-potion");
+        GameState nearItem = stateAfterPath(state, adjacentWalkableTile(state, item.getPosition()));
+        assertEquals("+", renderer.glyphFor(nearItem, item.getPosition().getX(), item.getPosition().getY()));
+
+        Npc npc = state.getNpcs().get(0);
+        GameState nearNpc = stateAfterPath(state, adjacentWalkableTile(state, npc.getPosition()));
+        assertEquals("?", renderer.glyphFor(nearNpc, npc.getPosition().getX(), npc.getPosition().getY()));
+
+        Trap trap = state.getTraps().get(0);
+        GameState nearTrap = stateAfterPath(state, adjacentWalkableTile(state, trap.getPosition()));
+        assertEquals("x", renderer.glyphFor(nearTrap, trap.getPosition().getX(), trap.getPosition().getY()));
+
+        Position stairs = state.getWorld().getStairsPosition();
+        GameState nearStairs = stateAfterPath(state, adjacentWalkableTile(state, stairs));
+        assertEquals(">", renderer.glyphFor(nearStairs, stairs.getX(), stairs.getY()));
+
+        GameState finalDepth = descendToDepth(state, 5);
+        Enemy boss = findEnemy(finalDepth, "defense-committee");
+        GameState nearBoss = stateAfterPath(finalDepth, adjacentWalkableTile(finalDepth, boss.getPosition()));
+        assertEquals("B", renderer.glyphFor(nearBoss, boss.getPosition().getX(), boss.getPosition().getY()));
     }
 
     private GameState moveUntilSpawnIsSeen(GameEngine engine) {
@@ -181,6 +215,32 @@ public class TileRendererTest {
             }
         }
         throw new AssertionError("Could not find adjacent walkable tile for " + target);
+    }
+
+    private GameState descendToDepth(GameState state, int targetDepth) {
+        GameState current = state;
+        while (current.getDepth() < targetDepth) {
+            current = stateAfterPath(current, current.getWorld().getStairsPosition()).interact();
+        }
+        return current;
+    }
+
+    private Enemy findEnemy(GameState state, String enemyId) {
+        for (Enemy enemy : state.getEnemies()) {
+            if (enemy.getId().equals(enemyId)) {
+                return enemy;
+            }
+        }
+        throw new AssertionError("Missing enemy: " + enemyId);
+    }
+
+    private Item findItem(GameState state, String itemId) {
+        for (Item item : state.getItems()) {
+            if (item.getId().equals(itemId)) {
+                return item;
+            }
+        }
+        throw new AssertionError("Missing item: " + itemId);
     }
 
     private char keyFor(Direction direction) {

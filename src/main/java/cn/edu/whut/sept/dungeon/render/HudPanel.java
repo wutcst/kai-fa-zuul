@@ -10,6 +10,7 @@ import javax.swing.JPanel;
 
 public final class HudPanel extends JPanel {
     private static final int HUD_HEIGHT = 96;
+    private static final int MAX_LINE_CHARS = 155;
     private GameState state;
 
     public HudPanel() {
@@ -31,7 +32,7 @@ public final class HudPanel extends JPanel {
         graphics.drawString(summaryText(), 20, 30);
         graphics.setFont(new Font(Font.SANS_SERIF, Font.PLAIN, 14));
         graphics.setColor(new Color(180, 188, 198));
-        graphics.drawString(objectiveText(), 20, 58);
+        graphics.drawString(detailText(), 20, 58);
         graphics.drawString(messageText(), 20, 80);
     }
 
@@ -47,20 +48,29 @@ public final class HudPanel extends JPanel {
                 + "    Lv: " + state.getPlayer().getLevel()
                 + "    EXP: " + state.getPlayer().getExp()
                 + "    ATK/DEF: " + state.getPlayer().getAtk() + "/" + state.getPlayer().getDef()
-                + "    Gear: " + state.getPlayer().getWeapon() + "/" + state.getPlayer().getArmor()
-                + "    Boost: +" + state.getPlayer().getCoffeeBoost()
-                + "    Player: (" + state.getPlayer().getX() + ", " + state.getPlayer().getY() + ")"
-                + "    Inventory: " + state.getInventory().summary();
+                + "    Gear: " + state.getPlayer().getWeapon() + "/" + state.getPlayer().getArmor();
     }
 
-    private String objectiveText() {
-        return "Objective: talk to NPCs, solve the Maven puzzle, gather materials, and reach the defense hall.";
+    private String detailText() {
+        if (state == null || !state.isStarted()) {
+            return "Inventory: empty";
+        }
+        return trimLine("Boost: +" + state.getPlayer().getCoffeeBoost()
+                + "    Player: (" + state.getPlayer().getX() + ", " + state.getPlayer().getY() + ")"
+                + "    Inventory: " + state.getInventory().summary());
     }
 
     private String messageText() {
         if (state == null) {
             return "Message: Ready.";
         }
-        return "Message: " + state.getMessage();
+        return trimLine("Message: " + state.getMessage());
+    }
+
+    private String trimLine(String text) {
+        if (text == null || text.length() <= MAX_LINE_CHARS) {
+            return text;
+        }
+        return text.substring(0, MAX_LINE_CHARS - 3) + "...";
     }
 }
