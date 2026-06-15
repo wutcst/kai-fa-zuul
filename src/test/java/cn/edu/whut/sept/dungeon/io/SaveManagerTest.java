@@ -24,8 +24,8 @@ public class SaveManagerTest {
         File saveFile = saveFile("position");
         SaveManager saveManager = new SaveManager(saveFile);
 
-        GameState saved = new GameEngine(saveManager).playWithInputString("n20260614sdd:q").getState();
-        GameState loaded = new GameEngine(saveManager).playWithInputString("l").getState();
+        GameState saved = new GameEngine(saveManager).playWithInputString("n20260614sll:q").getState();
+        GameState loaded = new GameEngine(saveManager).playWithInputString("o").getState();
 
         assertTrue(saveFile.exists());
         assertEquals(saved.getSeed(), loaded.getSeed());
@@ -40,8 +40,8 @@ public class SaveManagerTest {
         File saveFile = saveFile("world");
         SaveManager saveManager = new SaveManager(saveFile);
 
-        GameState saved = new GameEngine(saveManager).playWithInputString("n20260614sdd:q").getState();
-        GameState loaded = new GameEngine(saveManager).playWithInputString("l").getState();
+        GameState saved = new GameEngine(saveManager).playWithInputString("n20260614sll:q").getState();
+        GameState loaded = new GameEngine(saveManager).playWithInputString("o").getState();
 
         assertEquals(saved.getWorld().toTileString(), loaded.getWorld().toTileString());
         assertEquals(saved.getWorld().getDefenseHallPosition(), loaded.getWorld().getDefenseHallPosition());
@@ -63,7 +63,7 @@ public class SaveManagerTest {
         moveTo(engine, item.getPosition());
         engine.handleInput(InputCommand.fromKey('e'));
         engine.handleInput(InputCommand.saveAndQuit());
-        GameState loaded = new GameEngine(saveManager).playWithInputString("l").getState();
+        GameState loaded = new GameEngine(saveManager).playWithInputString("o").getState();
 
         assertTrue(loaded.getInventory().contains(item.getId()));
         assertTrue(findItem(loaded, item.getId()).isCollected());
@@ -78,7 +78,7 @@ public class SaveManagerTest {
 
         engine.handleInput(InputCommand.answer("pom.xml"));
         engine.handleInput(InputCommand.saveAndQuit());
-        GameState loaded = new GameEngine(saveManager).playWithInputString("l").getState();
+        GameState loaded = new GameEngine(saveManager).playWithInputString("o").getState();
 
         assertTrue(loaded.getQuest().isMavenPuzzleSolved());
         assertFalse(loaded.getNpcs().isEmpty());
@@ -92,7 +92,7 @@ public class SaveManagerTest {
             assertTrue(saveFile.delete());
         }
 
-        GameState loaded = new GameEngine(new SaveManager(saveFile)).playWithInputString("l").getState();
+        GameState loaded = new GameEngine(new SaveManager(saveFile)).playWithInputString("o").getState();
 
         assertFalse(loaded.isStarted());
         assertEquals("No saved game.", loaded.getMessage());
@@ -162,13 +162,13 @@ public class SaveManagerTest {
     private char keyFor(Direction direction) {
         switch (direction) {
             case NORTH:
-                return 'w';
+                return 'k';
             case SOUTH:
-                return 's';
+                return 'j';
             case WEST:
-                return 'a';
+                return 'h';
             case EAST:
-                return 'd';
+                return 'l';
             default:
                 throw new IllegalArgumentException("Unsupported direction: " + direction);
         }

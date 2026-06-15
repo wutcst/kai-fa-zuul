@@ -64,13 +64,28 @@ public class GameEngineTest {
     public void playerMovesOnFloor() {
         GameState initial = new GameEngine().playWithInputString("n123s").getState();
 
-        GameState moved = new GameEngine().playWithInputString("n123sd").getState();
+        GameState moved = new GameEngine().playWithInputString("n123sl").getState();
 
         assertEquals(initial.getPlayer().getX() + 1, moved.getPlayer().getX());
         assertEquals(initial.getPlayer().getY(), moved.getPlayer().getY());
         assertEquals(Direction.EAST, moved.getPlayer().getDirection());
         assertEquals(1, moved.getPlayer().getSteps());
         assertEquals("Moved EAST.", moved.getMessage());
+    }
+
+    @Test
+    public void vimMovementKeysMoveInExpectedDirections() {
+        assertEquals(Direction.WEST, InputCommand.fromKey('h').getDirection());
+        assertEquals(Direction.SOUTH, InputCommand.fromKey('j').getDirection());
+        assertEquals(Direction.NORTH, InputCommand.fromKey('k').getDirection());
+        assertEquals(Direction.EAST, InputCommand.fromKey('l').getDirection());
+    }
+
+    @Test
+    public void oIsLoadAndLIsEastMovement() {
+        assertEquals(InputCommand.Type.LOAD, InputCommand.fromKey('o').getType());
+        assertEquals(InputCommand.Type.MOVE, InputCommand.fromKey('l').getType());
+        assertEquals(Direction.EAST, InputCommand.fromKey('l').getDirection());
     }
 
     @Test
@@ -91,11 +106,11 @@ public class GameEngineTest {
 
     @Test
     public void validMoveIncreasesStepsButBlockedMoveDoesNot() {
-        GameState moved = new GameEngine().playWithInputString("n123sd").getState();
+        GameState moved = new GameEngine().playWithInputString("n123sl").getState();
         GameEngine engine = new GameEngine();
         engine.handleInput(InputCommand.newGame(123L));
         GameState beforeBlockedMove = moveUntilNextStepIsBlocked(engine, Direction.WEST);
-        GameState blocked = engine.handleInput(InputCommand.fromKey('a'));
+        GameState blocked = engine.handleInput(InputCommand.fromKey('h'));
 
         assertEquals(1, moved.getPlayer().getSteps());
         assertEquals(beforeBlockedMove.getPlayer().getSteps(), blocked.getPlayer().getSteps());
@@ -237,13 +252,13 @@ public class GameEngineTest {
     private char keyFor(Direction direction) {
         switch (direction) {
             case NORTH:
-                return 'w';
+                return 'k';
             case SOUTH:
-                return 's';
+                return 'j';
             case WEST:
-                return 'a';
+                return 'h';
             case EAST:
-                return 'd';
+                return 'l';
             default:
                 throw new IllegalArgumentException("Unsupported direction: " + direction);
         }
