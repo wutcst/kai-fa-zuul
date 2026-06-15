@@ -2,6 +2,7 @@ package cn.edu.whut.sept.dungeon.io;
 
 import cn.edu.whut.sept.dungeon.core.Direction;
 import cn.edu.whut.sept.dungeon.core.GameEngine;
+import cn.edu.whut.sept.dungeon.core.GameStatus;
 import cn.edu.whut.sept.dungeon.core.GameState;
 import cn.edu.whut.sept.dungeon.core.InputCommand;
 import cn.edu.whut.sept.dungeon.core.VisibilityState;
@@ -33,6 +34,12 @@ public class SaveManagerTest {
         assertEquals(saved.getPlayer().getY(), loaded.getPlayer().getY());
         assertEquals(saved.getPlayer().getDirection(), loaded.getPlayer().getDirection());
         assertEquals(saved.getPlayer().getSteps(), loaded.getPlayer().getSteps());
+        assertEquals(saved.getPlayer().getHp(), loaded.getPlayer().getHp());
+        assertEquals(saved.getPlayer().getMaxHp(), loaded.getPlayer().getMaxHp());
+        assertEquals(saved.getPlayer().getAtk(), loaded.getPlayer().getAtk());
+        assertEquals(saved.getPlayer().getDef(), loaded.getPlayer().getDef());
+        assertEquals(saved.getPlayer().getLevel(), loaded.getPlayer().getLevel());
+        assertEquals(saved.getPlayer().getExp(), loaded.getPlayer().getExp());
     }
 
     @Test
@@ -96,6 +103,20 @@ public class SaveManagerTest {
 
         assertFalse(loaded.isStarted());
         assertEquals("No saved game.", loaded.getMessage());
+    }
+
+    @Test
+    public void saveAndLoadRestoresGameOverStatus() {
+        File saveFile = saveFile("game-over");
+        SaveManager saveManager = new SaveManager(saveFile);
+        GameState defeated = new GameEngine(saveManager).playWithInputString("n123s").getState().damagePlayer(100);
+
+        saveManager.save(defeated);
+        GameState loaded = new GameEngine(saveManager).playWithInputString("o").getState();
+
+        assertEquals(GameStatus.GAME_OVER, loaded.getStatus());
+        assertEquals(0, loaded.getPlayer().getHp());
+        assertTrue(loaded.isGameOver());
     }
 
     private File saveFile(String name) {

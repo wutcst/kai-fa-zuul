@@ -40,7 +40,12 @@ public final class HudPanel extends JPanel {
             return "Seed: -    Steps: 0";
         }
         return "Seed: " + state.getSeed()
+                + "    Status: " + state.getStatus()
                 + "    Steps: " + state.getPlayer().getSteps()
+                + "    HP: " + state.getPlayer().getHp() + "/" + state.getPlayer().getMaxHp()
+                + "    Lv: " + state.getPlayer().getLevel()
+                + "    EXP: " + state.getPlayer().getExp()
+                + "    ATK/DEF: " + state.getPlayer().getAtk() + "/" + state.getPlayer().getDef()
                 + "    Player: (" + state.getPlayer().getX() + ", " + state.getPlayer().getY() + ")"
                 + "    Inventory: " + state.getInventory().summary();
     }

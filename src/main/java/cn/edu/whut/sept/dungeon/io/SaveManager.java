@@ -1,6 +1,7 @@
 package cn.edu.whut.sept.dungeon.io;
 
 import cn.edu.whut.sept.dungeon.core.Direction;
+import cn.edu.whut.sept.dungeon.core.GameStatus;
 import cn.edu.whut.sept.dungeon.core.GameState;
 import cn.edu.whut.sept.dungeon.entity.Inventory;
 import cn.edu.whut.sept.dungeon.entity.Item;
@@ -24,7 +25,7 @@ import java.util.List;
 
 public final class SaveManager {
     public static final File DEFAULT_SAVE_FILE = new File("save/campus-dungeon-save.json");
-    private static final int VERSION = 1;
+    private static final int VERSION = 2;
 
     private final File saveFile;
     private final Gson gson;
@@ -73,6 +74,7 @@ public final class SaveManager {
         boolean started;
         boolean exited;
         boolean saveRequested;
+        GameStatus status;
         PlayerData player;
         WorldData world;
         List<String> inventory;
@@ -88,6 +90,7 @@ public final class SaveManager {
             data.started = state.isStarted();
             data.exited = state.isExited();
             data.saveRequested = state.isSaveRequested();
+            data.status = state.getStatus();
             data.player = PlayerData.from(state.getPlayer());
             data.world = state.getWorld() == null ? null : WorldData.from(state.getWorld());
             data.inventory = state.getInventory().getItemIds();
@@ -114,7 +117,10 @@ public final class SaveManager {
             List<Item> restoredItems = entities == null ? Collections.<Item>emptyList() : entities.toItems();
             List<Npc> restoredNpcs = entities == null ? Collections.<Npc>emptyList() : entities.toNpcs();
             QuestState restoredQuest = quest == null ? QuestState.initial() : quest.toQuestState();
-            return GameState.restored(seed, started, exited, saveRequested, restoredPlayer, restoredWorld,
+            GameStatus restoredStatus = status == null
+                    ? (restoredQuest.isCompleted() ? GameStatus.COMPLETED : GameStatus.PLAYING)
+                    : status;
+            return GameState.restored(seed, started, exited, saveRequested, restoredStatus, restoredPlayer, restoredWorld,
                     Inventory.of(inventory), restoredItems, restoredNpcs, restoredQuest, decodeBooleans(explored), message);
         }
     }
@@ -124,6 +130,12 @@ public final class SaveManager {
         int y;
         Direction direction;
         int steps;
+        int hp;
+        int maxHp;
+        int atk;
+        int def;
+        int level;
+        int exp;
 
         static PlayerData from(GameState.PlayerState player) {
             PlayerData data = new PlayerData();
@@ -131,11 +143,24 @@ public final class SaveManager {
             data.y = player.getY();
             data.direction = player.getDirection();
             data.steps = player.getSteps();
+            data.hp = player.getHp();
+            data.maxHp = player.getMaxHp();
+            data.atk = player.getAtk();
+            data.def = player.getDef();
+            data.level = player.getLevel();
+            data.exp = player.getExp();
             return data;
         }
 
         GameState.PlayerState toPlayerState() {
-            return GameState.PlayerState.of(x, y, direction == null ? Direction.SOUTH : direction, steps);
+            int restoredMaxHp = maxHp <= 0 ? GameState.PlayerState.DEFAULT_MAX_HP : maxHp;
+            int restoredHp = hp <= 0 && maxHp <= 0 ? restoredMaxHp : hp;
+            int restoredAtk = atk <= 0 ? GameState.PlayerState.DEFAULT_ATK : atk;
+            int restoredDef = def < 0 ? GameState.PlayerState.DEFAULT_DEF : def;
+            int restoredLevel = level <= 0 ? GameState.PlayerState.DEFAULT_LEVEL : level;
+            int restoredExp = exp < 0 ? GameState.PlayerState.DEFAULT_EXP : exp;
+            return GameState.PlayerState.of(x, y, direction == null ? Direction.SOUTH : direction, steps,
+                    restoredHp, restoredMaxHp, restoredAtk, restoredDef, restoredLevel, restoredExp);
         }
     }
 

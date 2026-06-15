@@ -25,6 +25,13 @@ public class GameEngineTest {
         assertEquals("generated", state.getWorldStatus());
         assertNotNull(state.getWorld());
         assertNotNull(state.getPlayer());
+        assertEquals(GameStatus.PLAYING, state.getStatus());
+        assertEquals(30, state.getPlayer().getHp());
+        assertEquals(30, state.getPlayer().getMaxHp());
+        assertEquals(5, state.getPlayer().getAtk());
+        assertEquals(1, state.getPlayer().getDef());
+        assertEquals(1, state.getPlayer().getLevel());
+        assertEquals(0, state.getPlayer().getExp());
         assertEquals(state.getWorld().getSpawnPosition().getX(), state.getPlayer().getX());
         assertEquals(state.getWorld().getSpawnPosition().getY(), state.getPlayer().getY());
         assertTrue(state.getWorld().isWalkable(state.getWorld().getSpawnPosition()));
@@ -114,6 +121,37 @@ public class GameEngineTest {
 
         assertEquals(1, moved.getPlayer().getSteps());
         assertEquals(beforeBlockedMove.getPlayer().getSteps(), blocked.getPlayer().getSteps());
+    }
+
+    @Test
+    public void playerDamageCanEndGame() {
+        GameState state = new GameEngine().playWithInputString("n123s").getState();
+
+        GameState damaged = state.damagePlayer(7);
+        GameState defeated = damaged.damagePlayer(100);
+
+        assertEquals(23, damaged.getPlayer().getHp());
+        assertEquals(GameStatus.PLAYING, damaged.getStatus());
+        assertEquals(0, defeated.getPlayer().getHp());
+        assertEquals(GameStatus.GAME_OVER, defeated.getStatus());
+        assertTrue(defeated.isGameOver());
+        assertEquals("Game over. HP reached 0.", defeated.getMessage());
+    }
+
+    @Test
+    public void gameOverStopsNormalMovement() {
+        GameState defeated = new GameEngine().playWithInputString("n123s").getState().damagePlayer(100);
+
+        GameState afterMove = defeated.movePlayer(Direction.EAST);
+        GameState afterAnswer = defeated.answer("pom.xml");
+
+        assertEquals(GameStatus.GAME_OVER, afterMove.getStatus());
+        assertEquals(defeated.getPlayer().getX(), afterMove.getPlayer().getX());
+        assertEquals(defeated.getPlayer().getY(), afterMove.getPlayer().getY());
+        assertEquals(defeated.getPlayer().getSteps(), afterMove.getPlayer().getSteps());
+        assertEquals("Game over. Start a new game to try again.", afterMove.getMessage());
+        assertFalse(afterAnswer.getQuest().isMavenPuzzleSolved());
+        assertEquals("Game over. Start a new game to try again.", afterAnswer.getMessage());
     }
 
     @Test
