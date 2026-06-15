@@ -2,6 +2,7 @@ package cn.edu.whut.sept.dungeon.core;
 
 import cn.edu.whut.sept.dungeon.world.Position;
 import cn.edu.whut.sept.dungeon.world.World;
+import cn.edu.whut.sept.dungeon.entity.Enemy;
 import cn.edu.whut.sept.dungeon.entity.Item;
 import cn.edu.whut.sept.dungeon.entity.Npc;
 import org.junit.Test;
@@ -35,6 +36,7 @@ public class GameEngineTest {
         assertEquals(state.getWorld().getSpawnPosition().getX(), state.getPlayer().getX());
         assertEquals(state.getWorld().getSpawnPosition().getY(), state.getPlayer().getY());
         assertTrue(state.getWorld().isWalkable(state.getWorld().getSpawnPosition()));
+        assertFalse(state.getEnemies().isEmpty());
     }
 
     @Test
@@ -101,7 +103,7 @@ public class GameEngineTest {
         engine.handleInput(InputCommand.newGame(123L));
         GameState beforeBlockedMove = moveUntilNextStepIsBlocked(engine, Direction.WEST);
 
-        GameState state = engine.handleInput(InputCommand.fromKey('a'));
+        GameState state = engine.handleInput(InputCommand.fromKey('h'));
 
         assertTrue(state.isStarted());
         assertEquals(beforeBlockedMove.getPlayer().getX(), state.getPlayer().getX());
@@ -152,6 +154,44 @@ public class GameEngineTest {
         assertEquals("Game over. Start a new game to try again.", afterMove.getMessage());
         assertFalse(afterAnswer.getQuest().isMavenPuzzleSolved());
         assertEquals("Game over. Start a new game to try again.", afterAnswer.getMessage());
+    }
+
+    @Test
+    public void playerAttacksAdjacentEnemyWithoutMovingIntoEnemyTile() {
+        GameEngine engine = new GameEngine();
+        engine.handleInput(InputCommand.newGame(123L));
+        Enemy enemy = engine.getState().getEnemies().get(0);
+        Position adjacent = adjacentWalkableTile(engine.getState(), enemy.getPosition());
+
+        moveTo(engine, adjacent);
+        Direction attackDirection = directionBetween(adjacent, enemy.getPosition());
+        GameState attacked = engine.handleInput(InputCommand.fromKey(keyFor(attackDirection)));
+        Enemy damagedEnemy = attacked.enemyAt(enemy.getPosition());
+
+        assertEquals(adjacent, attacked.getPlayer().getPosition());
+        assertNotNull(damagedEnemy);
+        assertTrue(damagedEnemy.getHp() < enemy.getHp());
+        assertEquals("Hit " + enemy.getType() + " for 5 damage.", attacked.getMessage());
+    }
+
+    @Test
+    public void defeatedEnemyGrantsExpAndNoLongerBlocksMovement() {
+        GameEngine engine = new GameEngine();
+        engine.handleInput(InputCommand.newGame(123L));
+        Enemy enemy = engine.getState().getEnemies().get(0);
+        Position adjacent = adjacentWalkableTile(engine.getState(), enemy.getPosition());
+        Direction attackDirection = directionBetween(adjacent, enemy.getPosition());
+
+        moveTo(engine, adjacent);
+        GameState firstHit = engine.handleInput(InputCommand.fromKey(keyFor(attackDirection)));
+        GameState defeated = engine.handleInput(InputCommand.fromKey(keyFor(attackDirection)));
+        GameState movedIntoTile = engine.handleInput(InputCommand.fromKey(keyFor(attackDirection)));
+
+        assertNotNull(firstHit.enemyAt(enemy.getPosition()));
+        assertEquals(enemy.getExpReward(), defeated.getPlayer().getExp());
+        assertEquals("Defeated " + enemy.getType() + " and gained " + enemy.getExpReward() + " EXP.",
+                defeated.getMessage());
+        assertEquals(enemy.getPosition(), movedIntoTile.getPlayer().getPosition());
     }
 
     @Test
@@ -287,6 +327,37 @@ public class GameEngineTest {
         throw new AssertionError("Could not find a blocking wall while moving " + direction);
     }
 
+    private Position adjacentWalkableTile(GameState state, Position target) {
+        Direction[] directions = {Direction.NORTH, Direction.SOUTH, Direction.WEST, Direction.EAST};
+        for (Direction direction : directions) {
+            Position candidate = new Position(target.getX() - direction.getDx(), target.getY() - direction.getDy());
+            if (state.getWorld().contains(candidate.getX(), candidate.getY())
+                    && state.getWorld().isWalkable(candidate)
+                    && !candidate.equals(state.getPlayer().getPosition())
+                    && state.enemyAt(candidate) == null) {
+                try {
+                    pathTo(state, candidate);
+                    return candidate;
+                } catch (AssertionError ignored) {
+                    // Try the next side of the enemy.
+                }
+            }
+        }
+        throw new AssertionError("Could not find adjacent walkable tile for " + target);
+    }
+
+    private Direction directionBetween(Position from, Position to) {
+        int dx = to.getX() - from.getX();
+        int dy = to.getY() - from.getY();
+        Direction[] directions = {Direction.NORTH, Direction.SOUTH, Direction.WEST, Direction.EAST};
+        for (Direction direction : directions) {
+            if (direction.getDx() == dx && direction.getDy() == dy) {
+                return direction;
+            }
+        }
+        throw new AssertionError("Positions are not adjacent: " + from + " -> " + to);
+    }
+
     private char keyFor(Direction direction) {
         switch (direction) {
             case NORTH:
@@ -330,7 +401,8 @@ public class GameEngineTest {
                         current.position.getY() + direction.getDy());
                 if (world.contains(next.getX(), next.getY())
                         && !visited[next.getY()][next.getX()]
-                        && world.isWalkable(next)) {
+                        && world.isWalkable(next)
+                        && state.enemyAt(next) == null) {
                     visited[next.getY()][next.getX()] = true;
                     queue.add(new PathNode(next, current.path + keyFor(direction)));
                 }
@@ -403,7 +475,8 @@ public class GameEngineTest {
                         current.position.getY() + direction.getDy());
                 if (world.contains(next.getX(), next.getY())
                         && !visited[next.getY()][next.getX()]
-                        && world.isWalkable(next)) {
+                        && world.isWalkable(next)
+                        && state.enemyAt(next) == null) {
                     visited[next.getY()][next.getX()] = true;
                     queue.add(new PathNode(next, current.path + keyFor(direction)));
                 }

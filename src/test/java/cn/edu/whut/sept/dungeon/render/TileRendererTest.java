@@ -5,6 +5,7 @@ import cn.edu.whut.sept.dungeon.core.GameState;
 import cn.edu.whut.sept.dungeon.core.InputCommand;
 import cn.edu.whut.sept.dungeon.core.VisibilityState;
 import cn.edu.whut.sept.dungeon.core.Direction;
+import cn.edu.whut.sept.dungeon.entity.Enemy;
 import cn.edu.whut.sept.dungeon.world.Position;
 import cn.edu.whut.sept.dungeon.world.World;
 import org.junit.Test;
@@ -41,6 +42,18 @@ public class TileRendererTest {
         TileRenderer renderer = new TileRenderer();
 
         assertEquals(TileRenderer.SEEN_FLOOR_COLOR, renderer.colorFor(state, oldPosition.getX(), oldPosition.getY()));
+    }
+
+    @Test
+    public void rendererUsesEnemyColorForVisibleEnemy() {
+        GameEngine engine = new GameEngine();
+        engine.handleInput(InputCommand.newGame(123L));
+        Enemy enemy = engine.getState().getEnemies().get(0);
+        moveTo(engine, adjacentWalkableTile(engine.getState(), enemy.getPosition()));
+        TileRenderer renderer = new TileRenderer();
+
+        assertEquals(TileRenderer.ENEMY_COLOR,
+                renderer.colorFor(engine.getState(), enemy.getPosition().getX(), enemy.getPosition().getY()));
     }
 
     private GameState moveUntilSpawnIsSeen(GameEngine engine) {
@@ -85,16 +98,66 @@ public class TileRendererTest {
                 || Math.abs(origin.getY() - position.getY()) > GameState.VISION_RADIUS;
     }
 
+    private void moveTo(GameEngine engine, Position target) {
+        String path = pathTo(engine.getState(), target);
+        for (int i = 0; i < path.length(); i++) {
+            engine.handleInput(InputCommand.fromKey(path.charAt(i)));
+        }
+    }
+
+    private String pathTo(GameState state, Position target) {
+        World world = state.getWorld();
+        Position start = state.getPlayer().getPosition();
+        boolean[][] visited = new boolean[world.getHeight()][world.getWidth()];
+        Queue<PathNode> queue = new ArrayDeque<PathNode>();
+        queue.add(new PathNode(start, ""));
+        visited[start.getY()][start.getX()] = true;
+
+        while (!queue.isEmpty()) {
+            PathNode current = queue.remove();
+            if (current.position.equals(target)) {
+                return current.path;
+            }
+            Direction[] directions = {Direction.NORTH, Direction.SOUTH, Direction.WEST, Direction.EAST};
+            for (Direction direction : directions) {
+                Position next = new Position(current.position.getX() + direction.getDx(),
+                        current.position.getY() + direction.getDy());
+                if (world.contains(next.getX(), next.getY())
+                        && !visited[next.getY()][next.getX()]
+                        && world.isWalkable(next)
+                        && state.enemyAt(next) == null) {
+                    visited[next.getY()][next.getX()] = true;
+                    queue.add(new PathNode(next, current.path + keyFor(direction)));
+                }
+            }
+        }
+        throw new AssertionError("Could not find path to " + target);
+    }
+
+    private Position adjacentWalkableTile(GameState state, Position target) {
+        Direction[] directions = {Direction.NORTH, Direction.SOUTH, Direction.WEST, Direction.EAST};
+        for (Direction direction : directions) {
+            Position candidate = new Position(target.getX() - direction.getDx(), target.getY() - direction.getDy());
+            if (state.getWorld().contains(candidate.getX(), candidate.getY())
+                    && state.getWorld().isWalkable(candidate)
+                    && !candidate.equals(state.getPlayer().getPosition())
+                    && state.enemyAt(candidate) == null) {
+                return candidate;
+            }
+        }
+        throw new AssertionError("Could not find adjacent walkable tile for " + target);
+    }
+
     private char keyFor(Direction direction) {
         switch (direction) {
             case NORTH:
-                return 'w';
+                return 'k';
             case SOUTH:
-                return 's';
+                return 'j';
             case WEST:
-                return 'a';
+                return 'h';
             case EAST:
-                return 'd';
+                return 'l';
             default:
                 throw new IllegalArgumentException("Unsupported direction: " + direction);
         }
