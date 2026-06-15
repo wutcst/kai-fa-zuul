@@ -2,6 +2,7 @@ package cn.edu.whut.sept.dungeon.render;
 
 import cn.edu.whut.sept.dungeon.core.GameState;
 import cn.edu.whut.sept.dungeon.core.VisibilityState;
+import cn.edu.whut.sept.dungeon.entity.Enemy;
 import cn.edu.whut.sept.dungeon.entity.Item;
 import cn.edu.whut.sept.dungeon.entity.Npc;
 import cn.edu.whut.sept.dungeon.world.Position;
@@ -22,6 +23,7 @@ public final class TileRenderer {
     public static final Color DEFENSE_HALL_COLOR = new Color(208, 180, 75);
     public static final Color ITEM_COLOR = new Color(96, 170, 105);
     public static final Color NPC_COLOR = new Color(178, 105, 210);
+    public static final Color ENEMY_COLOR = new Color(200, 70, 70);
 
     public Color colorFor(GameState state, int x, int y) {
         if (state == null || state.getWorld() == null) {
@@ -38,6 +40,9 @@ public final class TileRenderer {
             case VISIBLE:
                 if (isPlayerAt(state, x, y)) {
                     return PLAYER_COLOR;
+                }
+                if (isEnemyAt(state, x, y)) {
+                    return ENEMY_COLOR;
                 }
                 if (isItemAt(state, x, y)) {
                     return ITEM_COLOR;
@@ -79,6 +84,15 @@ public final class TileRenderer {
     private boolean isItemAt(GameState state, int x, int y) {
         for (Item item : state.getItems()) {
             if (!item.isCollected() && item.getPosition().getX() == x && item.getPosition().getY() == y) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private boolean isEnemyAt(GameState state, int x, int y) {
+        for (Enemy enemy : state.getEnemies()) {
+            if (enemy.isAlive() && enemy.getPosition().getX() == x && enemy.getPosition().getY() == y) {
                 return true;
             }
         }

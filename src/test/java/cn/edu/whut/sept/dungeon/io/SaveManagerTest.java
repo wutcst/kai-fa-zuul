@@ -6,6 +6,7 @@ import cn.edu.whut.sept.dungeon.core.GameStatus;
 import cn.edu.whut.sept.dungeon.core.GameState;
 import cn.edu.whut.sept.dungeon.core.InputCommand;
 import cn.edu.whut.sept.dungeon.core.VisibilityState;
+import cn.edu.whut.sept.dungeon.entity.Enemy;
 import cn.edu.whut.sept.dungeon.entity.Item;
 import cn.edu.whut.sept.dungeon.world.Position;
 import cn.edu.whut.sept.dungeon.world.World;
@@ -119,6 +120,27 @@ public class SaveManagerTest {
         assertTrue(loaded.isGameOver());
     }
 
+    @Test
+    public void saveAndLoadRestoresEnemies() {
+        File saveFile = saveFile("enemies");
+        SaveManager saveManager = new SaveManager(saveFile);
+        GameEngine engine = new GameEngine(saveManager);
+        engine.handleInput(InputCommand.newGame(123L));
+        Enemy enemy = engine.getState().getEnemies().get(0);
+        Position adjacent = adjacentWalkableTile(engine.getState(), enemy.getPosition());
+        moveTo(engine, adjacent);
+        engine.handleInput(InputCommand.fromKey(keyFor(directionBetween(adjacent, enemy.getPosition()))));
+
+        saveManager.save(engine.getState());
+        GameState loaded = new GameEngine(saveManager).playWithInputString("o").getState();
+        Enemy loadedEnemy = findEnemy(loaded, enemy.getId());
+
+        assertFalse(loaded.getEnemies().isEmpty());
+        assertEquals(enemy.getId(), loaded.getEnemies().get(0).getId());
+        assertEquals(enemy.getType(), loaded.getEnemies().get(0).getType());
+        assertTrue(loadedEnemy.getHp() < enemy.getHp());
+    }
+
     private File saveFile(String name) {
         File directory = new File("target/test-saves");
         if (!directory.exists()) {
@@ -138,6 +160,15 @@ public class SaveManagerTest {
             }
         }
         throw new AssertionError("Missing item: " + itemId);
+    }
+
+    private Enemy findEnemy(GameState state, String enemyId) {
+        for (Enemy enemy : state.getEnemies()) {
+            if (enemy.getId().equals(enemyId)) {
+                return enemy;
+            }
+        }
+        throw new AssertionError("Missing enemy: " + enemyId);
     }
 
     private void moveTo(GameEngine engine, Position target) {
@@ -171,13 +202,55 @@ public class SaveManagerTest {
                         current.position.getY() + direction.getDy());
                 if (world.contains(next.getX(), next.getY())
                         && !visited[next.getY()][next.getX()]
-                        && world.isWalkable(next)) {
+                        && world.isWalkable(next)
+                        && state.enemyAt(next) == null) {
                     visited[next.getY()][next.getX()] = true;
                     queue.add(new PathNode(next, current.path + keyFor(direction)));
                 }
             }
         }
         throw new AssertionError("Could not find path to " + target);
+    }
+
+    private Position adjacentWalkableTile(GameState state, Position target) {
+        Direction[] directions = {
+                Direction.NORTH,
+                Direction.SOUTH,
+                Direction.WEST,
+                Direction.EAST
+        };
+        for (Direction direction : directions) {
+            Position candidate = new Position(target.getX() - direction.getDx(), target.getY() - direction.getDy());
+            if (state.getWorld().contains(candidate.getX(), candidate.getY())
+                    && state.getWorld().isWalkable(candidate)
+                    && !candidate.equals(state.getPlayer().getPosition())
+                    && state.enemyAt(candidate) == null) {
+                try {
+                    pathTo(state, candidate);
+                    return candidate;
+                } catch (AssertionError ignored) {
+                    // Try the next side of the enemy.
+                }
+            }
+        }
+        throw new AssertionError("Could not find adjacent walkable tile for " + target);
+    }
+
+    private Direction directionBetween(Position from, Position to) {
+        int dx = to.getX() - from.getX();
+        int dy = to.getY() - from.getY();
+        Direction[] directions = {
+                Direction.NORTH,
+                Direction.SOUTH,
+                Direction.WEST,
+                Direction.EAST
+        };
+        for (Direction direction : directions) {
+            if (direction.getDx() == dx && direction.getDy() == dy) {
+                return direction;
+            }
+        }
+        throw new AssertionError("Positions are not adjacent: " + from + " -> " + to);
     }
 
     private char keyFor(Direction direction) {

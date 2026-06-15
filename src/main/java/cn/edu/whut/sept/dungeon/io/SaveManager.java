@@ -3,6 +3,7 @@ package cn.edu.whut.sept.dungeon.io;
 import cn.edu.whut.sept.dungeon.core.Direction;
 import cn.edu.whut.sept.dungeon.core.GameStatus;
 import cn.edu.whut.sept.dungeon.core.GameState;
+import cn.edu.whut.sept.dungeon.entity.Enemy;
 import cn.edu.whut.sept.dungeon.entity.Inventory;
 import cn.edu.whut.sept.dungeon.entity.Item;
 import cn.edu.whut.sept.dungeon.entity.Npc;
@@ -100,6 +101,10 @@ public final class SaveManager {
             for (Item item : state.getItems()) {
                 data.entities.items.add(ItemData.from(item));
             }
+            data.entities.enemies = new ArrayList<EnemyData>();
+            for (Enemy enemy : state.getEnemies()) {
+                data.entities.enemies.add(EnemyData.from(enemy));
+            }
             data.entities.npcs = new ArrayList<NpcData>();
             for (Npc npc : state.getNpcs()) {
                 data.entities.npcs.add(NpcData.from(npc));
@@ -115,13 +120,15 @@ public final class SaveManager {
                     ? GameState.PlayerState.origin()
                     : player.toPlayerState();
             List<Item> restoredItems = entities == null ? Collections.<Item>emptyList() : entities.toItems();
+            List<Enemy> restoredEnemies = entities == null ? Collections.<Enemy>emptyList() : entities.toEnemies();
             List<Npc> restoredNpcs = entities == null ? Collections.<Npc>emptyList() : entities.toNpcs();
             QuestState restoredQuest = quest == null ? QuestState.initial() : quest.toQuestState();
             GameStatus restoredStatus = status == null
                     ? (restoredQuest.isCompleted() ? GameStatus.COMPLETED : GameStatus.PLAYING)
                     : status;
             return GameState.restored(seed, started, exited, saveRequested, restoredStatus, restoredPlayer, restoredWorld,
-                    Inventory.of(inventory), restoredItems, restoredNpcs, restoredQuest, decodeBooleans(explored), message);
+                    Inventory.of(inventory), restoredItems, restoredEnemies, restoredNpcs, restoredQuest,
+                    decodeBooleans(explored), message);
         }
     }
 
@@ -295,6 +302,7 @@ public final class SaveManager {
 
     static final class EntityData {
         List<ItemData> items = Collections.emptyList();
+        List<EnemyData> enemies = Collections.emptyList();
         List<NpcData> npcs = Collections.emptyList();
         List<String> doors = Collections.emptyList();
 
@@ -303,6 +311,16 @@ public final class SaveManager {
             if (items != null) {
                 for (ItemData item : items) {
                     result.add(item.toItem());
+                }
+            }
+            return result;
+        }
+
+        List<Enemy> toEnemies() {
+            List<Enemy> result = new ArrayList<Enemy>();
+            if (enemies != null) {
+                for (EnemyData enemy : enemies) {
+                    result.add(enemy.toEnemy());
                 }
             }
             return result;
@@ -336,6 +354,34 @@ public final class SaveManager {
 
         Item toItem() {
             return new Item(id, name, position.toPosition(), collected);
+        }
+    }
+
+    static final class EnemyData {
+        String id;
+        String type;
+        PositionData position;
+        int hp;
+        int atk;
+        int def;
+        int expReward;
+        boolean alive;
+
+        static EnemyData from(Enemy enemy) {
+            EnemyData data = new EnemyData();
+            data.id = enemy.getId();
+            data.type = enemy.getType();
+            data.position = PositionData.from(enemy.getPosition());
+            data.hp = enemy.getHp();
+            data.atk = enemy.getAtk();
+            data.def = enemy.getDef();
+            data.expReward = enemy.getExpReward();
+            data.alive = enemy.isAlive();
+            return data;
+        }
+
+        Enemy toEnemy() {
+            return new Enemy(id, type, position.toPosition(), hp, atk, def, expReward, alive);
         }
     }
 
