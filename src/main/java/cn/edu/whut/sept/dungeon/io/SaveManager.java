@@ -64,6 +64,9 @@ public final class SaveManager {
             if (data == null) {
                 return GameState.initial().withMessage("No saved game.");
             }
+            if (!data.isLoadable()) {
+                return GameState.initial().withMessage("Saved game is incompatible.");
+            }
             return data.toGameState().withMessage("Loaded saved game.");
         } catch (IOException exception) {
             throw new IllegalStateException("Could not load game.", exception);
@@ -138,6 +141,10 @@ public final class SaveManager {
             return GameState.restored(seed, restoredDepth, started, exited, saveRequested, restoredStatus, restoredPlayer, restoredWorld,
                     Inventory.of(inventory), restoredItems, restoredEnemies, restoredNpcs, restoredTraps, restoredQuest,
                     decodeBooleans(explored), message);
+        }
+
+        boolean isLoadable() {
+            return player != null && (world == null || world.isLoadable());
         }
     }
 
@@ -220,6 +227,11 @@ public final class SaveManager {
             PositionData restoredStairs = stairs == null ? defenseHall : stairs;
             return new World(width, height, decodeTiles(tiles, width, height), toRooms(), toCorridors(),
                     spawn.toPosition(), defenseHall.toPosition(), restoredStairs.toPosition());
+        }
+
+        boolean isLoadable() {
+            return width > 0 && height > 0 && tiles != null && tiles.size() == height
+                    && spawn != null && defenseHall != null;
         }
 
         private List<Room> toRooms() {

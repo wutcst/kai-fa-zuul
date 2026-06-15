@@ -14,6 +14,9 @@ import cn.edu.whut.sept.dungeon.world.World;
 import org.junit.Test;
 
 import java.io.File;
+import java.io.IOException;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
 import java.util.ArrayDeque;
 import java.util.Queue;
 
@@ -192,6 +195,55 @@ public class SaveManagerTest {
         assertEquals(triggered.getPlayer().getHp(), loaded.getPlayer().getHp());
     }
 
+    @Test
+    public void saveAndLoadRestoresFinalBossState() {
+        File saveFile = saveFile("boss");
+        SaveManager saveManager = new SaveManager(saveFile);
+        GameState state = GameState.newGame(123L);
+        GameState armed = stateAfterPath(state, findItem(state, "refactor-blade").getPosition()).interact();
+        GameState finalDepth = descendToDepth(armed, 5);
+        GameState defeatedBoss = defeatEnemy(finalDepth, "defense-committee");
+
+        saveManager.save(defeatedBoss);
+        GameState loaded = new GameEngine(saveManager).playWithInputString("o").getState();
+
+        assertEquals(5, loaded.getDepth());
+        assertFalse(findEnemy(loaded, "defense-committee").isAlive());
+        assertEquals(defeatedBoss.getWorld().getDefenseHallPosition(), loaded.getWorld().getDefenseHallPosition());
+    }
+
+    @Test
+    public void loadOldPartialSaveUsesSafeDefaults() throws IOException {
+        File saveFile = saveFile("partial");
+        SaveManager saveManager = new SaveManager(saveFile);
+        GameState state = GameState.newGame(123L).damagePlayer(4);
+        saveManager.save(state);
+        String json = new String(Files.readAllBytes(saveFile.toPath()), StandardCharsets.UTF_8)
+                .replaceFirst("\\s+\"version\": 2,\\n", "")
+                .replaceFirst("\\s+\"depth\": 1,\\n", "")
+                .replaceFirst("\\s+\"entities\": \\{[\\s\\S]*?\\n  \\},\\n", "");
+        Files.write(saveFile.toPath(), json.getBytes(StandardCharsets.UTF_8));
+
+        GameState loaded = new GameEngine(saveManager).playWithInputString("o").getState();
+
+        assertTrue(loaded.isStarted());
+        assertEquals(1, loaded.getDepth());
+        assertEquals(state.getPlayer().getHp(), loaded.getPlayer().getHp());
+        assertTrue(loaded.getEnemies().isEmpty());
+        assertTrue(loaded.getTraps().isEmpty());
+    }
+
+    @Test
+    public void loadClearlyIncompatibleSaveReturnsInitialMessage() throws IOException {
+        File saveFile = saveFile("incompatible");
+        Files.write(saveFile.toPath(), "{\"started\":true}".getBytes(StandardCharsets.UTF_8));
+
+        GameState loaded = new GameEngine(new SaveManager(saveFile)).playWithInputString("o").getState();
+
+        assertFalse(loaded.isStarted());
+        assertEquals("Saved game is incompatible.", loaded.getMessage());
+    }
+
     private File saveFile(String name) {
         File directory = new File("target/test-saves");
         if (!directory.exists()) {
@@ -252,6 +304,25 @@ public class SaveManagerTest {
         GameState current = state;
         for (int i = 0; i < path.length(); i++) {
             current = current.movePlayer(InputCommand.fromKey(path.charAt(i)).getDirection());
+        }
+        return current;
+    }
+
+    private GameState descendToDepth(GameState state, int targetDepth) {
+        GameState current = state;
+        while (current.getDepth() < targetDepth) {
+            current = stateAfterPath(current, current.getWorld().getStairsPosition()).interact();
+        }
+        return current;
+    }
+
+    private GameState defeatEnemy(GameState state, String enemyId) {
+        Enemy enemy = findEnemy(state, enemyId);
+        Position adjacent = adjacentWalkableTile(state, enemy.getPosition());
+        GameState current = stateAfterPath(state, adjacent);
+        Direction direction = directionBetween(adjacent, enemy.getPosition());
+        while (findEnemy(current, enemyId).isAlive()) {
+            current = current.movePlayer(direction);
         }
         return current;
     }
