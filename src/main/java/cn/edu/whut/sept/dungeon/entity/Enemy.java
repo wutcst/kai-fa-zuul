@@ -31,6 +31,10 @@ public final class Enemy {
         return new Enemy(id, "Deadline", position, 6, 6, 1, 8, true);
     }
 
+    public static Enemy defenseCommittee(String id, Position position) {
+        return new Enemy(id, "Defense Committee", position, 28, 9, 3, 30, true);
+    }
+
     public String getId() {
         return id;
     }

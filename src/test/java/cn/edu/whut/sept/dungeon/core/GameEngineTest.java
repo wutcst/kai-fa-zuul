@@ -447,11 +447,28 @@ public class GameEngineTest {
         engine.handleInput(InputCommand.newGame(123L));
         GameState finalDepth = descendToDepth(engine.getState(), 5);
 
-        GameState rejected = stateAfterPath(finalDepth, finalDepth.getWorld().getDefenseHallPosition()).interact();
+        GameState withoutBoss = defeatBoss(finalDepth);
+        GameState rejected = stateAfterPath(withoutBoss, withoutBoss.getWorld().getDefenseHallPosition()).interact();
 
         assertFalse(rejected.isCompleted());
         assertTrue(rejected.getMessage().contains("Defense hall locked."));
         assertTrue(rejected.getMessage().contains("report"));
+    }
+
+    @Test
+    public void defenseDoorRejectsLiveBossEvenWithMaterials() {
+        GameEngine engine = new GameEngine();
+        engine.handleInput(InputCommand.newGame(123L));
+
+        completeNpcQuestLine(engine);
+        GameState finalDepth = descendToDepth(engine.getState(), 5);
+        Position adjacent = adjacentWalkableTile(finalDepth, finalDepth.getWorld().getDefenseHallPosition());
+        GameState nearBoss = stateAfterPath(finalDepth, adjacent);
+        GameState rejected = nearBoss.movePlayer(directionBetween(adjacent, finalDepth.getWorld().getDefenseHallPosition()));
+
+        assertFalse(rejected.isCompleted());
+        assertTrue(findEnemy(rejected, "defense-committee").isAlive());
+        assertTrue(rejected.getMessage().contains("Defense Committee"));
     }
 
     @Test
@@ -460,12 +477,37 @@ public class GameEngineTest {
         engine.handleInput(InputCommand.newGame(123L));
 
         completeNpcQuestLine(engine);
-        GameState finalDepth = descendToDepth(engine.getState(), 5);
-        GameState completed = stateAfterPath(finalDepth, finalDepth.getWorld().getDefenseHallPosition()).interact();
+        GameState armed = stateAfterPath(engine.getState(), findItem(engine.getState(), "refactor-blade").getPosition()).interact();
+        GameState finalDepth = descendToDepth(armed, 5);
+        GameState withoutBoss = defeatBoss(finalDepth);
+        GameState completed = stateAfterPath(withoutBoss, withoutBoss.getWorld().getDefenseHallPosition()).interact();
 
         assertTrue(completed.isCompleted());
         assertTrue(completed.getMessage().contains("Defense completed"));
         assertTrue(completed.getMessage().contains("software engineering practice"));
+    }
+
+    @Test
+    public void finalDepthSpawnsDefenseCommitteeBoss() {
+        GameState finalDepth = descendToDepth(GameState.newGame(123L), 5);
+        Enemy boss = findEnemy(finalDepth, "defense-committee");
+
+        assertEquals("Defense Committee", boss.getType());
+        assertTrue(boss.isAlive());
+        assertEquals(finalDepth.getWorld().getDefenseHallPosition(), boss.getPosition());
+        assertTrue(boss.getHp() > finalDepth.getEnemies().get(0).getHp());
+    }
+
+    @Test
+    public void defeatingBossUnlocksFinalInteraction() {
+        GameState state = GameState.newGame(123L);
+        GameState armed = stateAfterPath(state, findItem(state, "refactor-blade").getPosition()).interact();
+        GameState finalDepth = descendToDepth(armed, 5);
+
+        GameState withoutBoss = defeatBoss(finalDepth);
+
+        assertFalse(findEnemy(withoutBoss, "defense-committee").isAlive());
+        assertTrue(withoutBoss.getMessage().contains("Final defense is ready"));
     }
 
     @Test
@@ -650,6 +692,17 @@ public class GameEngineTest {
         GameState current = state;
         while (current.getDepth() < targetDepth) {
             current = stateAfterPath(current, current.getWorld().getStairsPosition()).interact();
+        }
+        return current;
+    }
+
+    private GameState defeatBoss(GameState state) {
+        Enemy boss = findEnemy(state, "defense-committee");
+        Position adjacent = adjacentWalkableTile(state, boss.getPosition());
+        GameState current = stateAfterPath(state, adjacent);
+        Direction direction = directionBetween(adjacent, boss.getPosition());
+        while (findEnemy(current, boss.getId()).isAlive()) {
+            current = current.movePlayer(direction);
         }
         return current;
     }

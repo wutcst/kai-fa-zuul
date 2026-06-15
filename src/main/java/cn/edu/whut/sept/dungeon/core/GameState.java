@@ -38,6 +38,7 @@ public final class GameState {
     private static final long DEPTH_SEED_STEP = 1000003L;
     private static final int TRAP_DAMAGE = 5;
     private static final int WEAKNESS_PENALTY = 2;
+    private static final String BOSS_ID = "defense-committee";
 
     private final Long seed;
     private final int depth;
@@ -320,6 +321,9 @@ public final class GameState {
             return descendToNextDepth();
         }
         if (player.getPosition().equals(world.getDefenseHallPosition())) {
+            if (bossAlive()) {
+                return withMessage("Defense hall guarded. Defeat the Defense Committee first.");
+            }
             if (inventory.containsAll(REPORT, LAPTOP, SLIDES, PASS)) {
                 return new GameState(seed, depth, started, exited, saveRequested, GameStatus.COMPLETED, player, world,
                         inventory, items, enemies, npcs, traps, quest.withCompleted(), explored, visible,
@@ -409,9 +413,10 @@ public final class GameState {
                 continue;
             }
             if (enemy.getPosition().manhattanDistanceTo(nextPlayer.getPosition()) == 1) {
-                int damage = CombatSystem.damage(enemy.getAtk(), nextPlayer.getDef());
+                int enemyAtk = enemy.getAtk() + (isBoss(enemy) && enemy.getHp() <= 14 ? 2 : 0);
+                int damage = CombatSystem.damage(enemyAtk, nextPlayer.getDef());
                 nextPlayer = nextPlayer.damage(damage);
-                events.add(enemy.getType() + " hits you for " + damage + " damage");
+                events.add(enemyAttackMessage(enemy, damage));
                 nextEnemies.add(enemy);
                 if (nextPlayer.getHp() <= 0) {
                     nextStatus = GameStatus.GAME_OVER;
@@ -467,6 +472,26 @@ public final class GameState {
             }
         }
         return null;
+    }
+
+    private boolean bossAlive() {
+        for (Enemy enemy : enemies) {
+            if (isBoss(enemy) && enemy.isAlive()) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private boolean isBoss(Enemy enemy) {
+        return enemy != null && BOSS_ID.equals(enemy.getId());
+    }
+
+    private String enemyAttackMessage(Enemy enemy, int damage) {
+        if (isBoss(enemy) && enemy.getHp() <= 14) {
+            return "Defense Committee launches final questions for " + damage + " damage";
+        }
+        return enemy.getType() + " hits you for " + damage + " damage";
     }
 
     public Trap trapAt(Position position) {
@@ -525,6 +550,9 @@ public final class GameState {
         if (!damagedEnemy.isAlive()) {
             nextPlayer = nextPlayer.gainExp(enemy.getExpReward());
             nextMessage = "Defeated " + enemy.getType() + " and gained " + enemy.getExpReward() + " EXP.";
+            if (isBoss(enemy)) {
+                nextMessage = "Defeated the Defense Committee. Final defense is ready for submission.";
+            }
         }
         return new GameState(seed, depth, started, exited, saveRequested, status, nextPlayer, world,
                 inventory, items, nextEnemies, npcs, traps, quest, explored, visible, nextMessage);
@@ -1032,6 +1060,9 @@ public final class GameState {
         if (!rooms.isEmpty()) {
             result.add(scaleEnemy(Enemy.bug("bug-1", rooms.get(Math.min(5, rooms.size() - 1)).getCenter()), depth));
             result.add(scaleEnemy(Enemy.deadline("deadline-1", rooms.get(Math.min(6, rooms.size() - 1)).getCenter()), depth));
+        }
+        if (depth >= MAX_DEPTH) {
+            result.add(Enemy.defenseCommittee(BOSS_ID, world.getDefenseHallPosition()));
         }
         return result;
     }
