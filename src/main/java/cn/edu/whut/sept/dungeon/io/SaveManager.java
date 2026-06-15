@@ -72,6 +72,7 @@ public final class SaveManager {
     static final class SaveData {
         int version;
         Long seed;
+        int depth;
         boolean started;
         boolean exited;
         boolean saveRequested;
@@ -88,6 +89,7 @@ public final class SaveManager {
             SaveData data = new SaveData();
             data.version = VERSION;
             data.seed = state.getSeed();
+            data.depth = state.getDepth();
             data.started = state.isStarted();
             data.exited = state.isExited();
             data.saveRequested = state.isSaveRequested();
@@ -126,7 +128,8 @@ public final class SaveManager {
             GameStatus restoredStatus = status == null
                     ? (restoredQuest.isCompleted() ? GameStatus.COMPLETED : GameStatus.PLAYING)
                     : status;
-            return GameState.restored(seed, started, exited, saveRequested, restoredStatus, restoredPlayer, restoredWorld,
+            int restoredDepth = depth <= 0 ? 1 : depth;
+            return GameState.restored(seed, restoredDepth, started, exited, saveRequested, restoredStatus, restoredPlayer, restoredWorld,
                     Inventory.of(inventory), restoredItems, restoredEnemies, restoredNpcs, restoredQuest,
                     decodeBooleans(explored), message);
         }
@@ -186,6 +189,7 @@ public final class SaveManager {
         List<CorridorData> corridors;
         PositionData spawn;
         PositionData defenseHall;
+        PositionData stairs;
 
         static WorldData from(World world) {
             WorldData data = new WorldData();
@@ -202,12 +206,14 @@ public final class SaveManager {
             }
             data.spawn = PositionData.from(world.getSpawnPosition());
             data.defenseHall = PositionData.from(world.getDefenseHallPosition());
+            data.stairs = PositionData.from(world.getStairsPosition());
             return data;
         }
 
         World toWorld() {
+            PositionData restoredStairs = stairs == null ? defenseHall : stairs;
             return new World(width, height, decodeTiles(tiles, width, height), toRooms(), toCorridors(),
-                    spawn.toPosition(), defenseHall.toPosition());
+                    spawn.toPosition(), defenseHall.toPosition(), restoredStairs.toPosition());
         }
 
         private List<Room> toRooms() {

@@ -53,6 +53,7 @@ public class SaveManagerTest {
 
         assertEquals(saved.getWorld().toTileString(), loaded.getWorld().toTileString());
         assertEquals(saved.getWorld().getDefenseHallPosition(), loaded.getWorld().getDefenseHallPosition());
+        assertEquals(saved.getWorld().getStairsPosition(), loaded.getWorld().getStairsPosition());
         assertEquals(saved.getExploredCount(), loaded.getExploredCount());
         assertTrue(loaded.isExplored(saved.getPlayer().getX(), saved.getPlayer().getY()));
         assertEquals(VisibilityState.VISIBLE,
@@ -157,6 +158,21 @@ public class SaveManagerTest {
         assertEquals(9, loaded.getPlayer().getAtk());
         assertEquals(3, loaded.getPlayer().getCoffeeBoost());
         assertFalse(loaded.getInventory().contains("coffee"));
+    }
+
+    @Test
+    public void saveAndLoadRestoresDungeonDepth() {
+        File saveFile = saveFile("depth");
+        SaveManager saveManager = new SaveManager(saveFile);
+        GameState state = GameState.newGame(123L);
+        GameState secondDepth = stateAfterPath(state, state.getWorld().getStairsPosition()).interact();
+
+        saveManager.save(secondDepth);
+        GameState loaded = new GameEngine(saveManager).playWithInputString("o").getState();
+
+        assertEquals(2, loaded.getDepth());
+        assertEquals(secondDepth.getWorld().getStairsPosition(), loaded.getWorld().getStairsPosition());
+        assertEquals(secondDepth.getWorld().toTileString(), loaded.getWorld().toTileString());
     }
 
     private File saveFile(String name) {
