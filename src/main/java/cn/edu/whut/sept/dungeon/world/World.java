@@ -17,9 +17,15 @@ public final class World {
     private final List<Corridor> corridors;
     private final Position spawnPosition;
     private final Position defenseHallPosition;
+    private final Position stairsPosition;
 
     public World(int width, int height, Tile[][] tiles, List<Room> rooms, List<Corridor> corridors,
                  Position spawnPosition, Position defenseHallPosition) {
+        this(width, height, tiles, rooms, corridors, spawnPosition, defenseHallPosition, defenseHallPosition);
+    }
+
+    public World(int width, int height, Tile[][] tiles, List<Room> rooms, List<Corridor> corridors,
+                 Position spawnPosition, Position defenseHallPosition, Position stairsPosition) {
         this.width = width;
         this.height = height;
         this.tiles = copyTiles(tiles, width, height);
@@ -27,6 +33,7 @@ public final class World {
         this.corridors = Collections.unmodifiableList(new ArrayList<Corridor>(corridors));
         this.spawnPosition = spawnPosition;
         this.defenseHallPosition = defenseHallPosition;
+        this.stairsPosition = stairsPosition;
     }
 
     public int getWidth() {
@@ -71,6 +78,10 @@ public final class World {
 
     public Position getDefenseHallPosition() {
         return defenseHallPosition;
+    }
+
+    public Position getStairsPosition() {
+        return stairsPosition;
     }
 
     public boolean isReachable(Position start, Position target) {

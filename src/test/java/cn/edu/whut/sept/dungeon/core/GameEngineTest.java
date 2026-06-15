@@ -336,12 +336,56 @@ public class GameEngineTest {
     }
 
     @Test
+    public void interactOnStairsDescendsToNextDepth() {
+        GameState state = GameState.newGame(123L);
+        GameState atStairs = stateAfterPath(state, state.getWorld().getStairsPosition());
+
+        GameState nextDepth = atStairs.interact();
+
+        assertEquals(2, nextDepth.getDepth());
+        assertEquals(nextDepth.getWorld().getSpawnPosition(), nextDepth.getPlayer().getPosition());
+        assertFalse(state.getWorld().toTileString().equals(nextDepth.getWorld().toTileString()));
+        assertEquals("Descended to depth 2.", nextDepth.getMessage());
+    }
+
+    @Test
+    public void descendingPreservesPlayerProgressAndResetsLevelState() {
+        GameState state = GameState.newGame(123L);
+        GameState withWeapon = stateAfterPath(state, findItem(state, "steel-keyboard").getPosition()).interact();
+        GameState withPotion = stateAfterPath(withWeapon, findItem(withWeapon, "small-potion").getPosition()).interact()
+                .damagePlayer(5);
+        int exploredBefore = withPotion.getExploredCount();
+
+        GameState nextDepth = stateAfterPath(withPotion, withPotion.getWorld().getStairsPosition()).interact();
+
+        assertEquals(2, nextDepth.getDepth());
+        assertEquals(withPotion.getPlayer().getHp(), nextDepth.getPlayer().getHp());
+        assertEquals("steel-keyboard", nextDepth.getPlayer().getWeapon());
+        assertEquals(withPotion.getPlayer().getAtk(), nextDepth.getPlayer().getAtk());
+        assertTrue(nextDepth.getInventory().contains("small-potion"));
+        assertTrue(nextDepth.getExploredCount() < exploredBefore);
+        assertTrue(nextDepth.getWorld().isReachable(nextDepth.getWorld().getSpawnPosition(),
+                nextDepth.getWorld().getStairsPosition()));
+    }
+
+    @Test
+    public void deeperDungeonEnemiesAreStronger() {
+        GameState state = GameState.newGame(123L);
+        Enemy firstDepthEnemy = state.getEnemies().get(0);
+        GameState secondDepth = stateAfterPath(state, state.getWorld().getStairsPosition()).interact();
+        Enemy secondDepthEnemy = secondDepth.getEnemies().get(0);
+
+        assertTrue(secondDepthEnemy.getHp() > firstDepthEnemy.getHp());
+        assertTrue(secondDepthEnemy.getAtk() > firstDepthEnemy.getAtk());
+    }
+
+    @Test
     public void defenseDoorRejectsMissingMaterials() {
         GameEngine engine = new GameEngine();
         engine.handleInput(InputCommand.newGame(123L));
+        GameState finalDepth = descendToDepth(engine.getState(), 5);
 
-        moveTo(engine, engine.getState().getWorld().getDefenseHallPosition());
-        GameState rejected = engine.handleInput(InputCommand.fromKey('e'));
+        GameState rejected = stateAfterPath(finalDepth, finalDepth.getWorld().getDefenseHallPosition()).interact();
 
         assertFalse(rejected.isCompleted());
         assertTrue(rejected.getMessage().contains("Defense hall locked."));
@@ -354,8 +398,8 @@ public class GameEngineTest {
         engine.handleInput(InputCommand.newGame(123L));
 
         completeNpcQuestLine(engine);
-        moveTo(engine, engine.getState().getWorld().getDefenseHallPosition());
-        GameState completed = engine.handleInput(InputCommand.fromKey('e'));
+        GameState finalDepth = descendToDepth(engine.getState(), 5);
+        GameState completed = stateAfterPath(finalDepth, finalDepth.getWorld().getDefenseHallPosition()).interact();
 
         assertTrue(completed.isCompleted());
         assertTrue(completed.getMessage().contains("Defense completed"));
@@ -534,6 +578,14 @@ public class GameEngineTest {
         GameState current = state;
         for (int i = 0; i < path.length(); i++) {
             current = current.movePlayer(InputCommand.fromKey(path.charAt(i)).getDirection());
+        }
+        return current;
+    }
+
+    private GameState descendToDepth(GameState state, int targetDepth) {
+        GameState current = state;
+        while (current.getDepth() < targetDepth) {
+            current = stateAfterPath(current, current.getWorld().getStairsPosition()).interact();
         }
         return current;
     }

@@ -24,6 +24,7 @@ public final class TileRenderer {
     public static final Color ITEM_COLOR = new Color(96, 170, 105);
     public static final Color NPC_COLOR = new Color(178, 105, 210);
     public static final Color ENEMY_COLOR = new Color(200, 70, 70);
+    public static final Color STAIRS_COLOR = new Color(110, 210, 220);
 
     public Color colorFor(GameState state, int x, int y) {
         if (state == null || state.getWorld() == null) {
@@ -49,6 +50,9 @@ public final class TileRenderer {
                 }
                 if (isNpcAt(state, x, y)) {
                     return NPC_COLOR;
+                }
+                if (isStairsAt(state, x, y)) {
+                    return STAIRS_COLOR;
                 }
                 if (isDefenseHallAt(world, x, y)) {
                     return DEFENSE_HALL_COLOR;
@@ -79,6 +83,11 @@ public final class TileRenderer {
     private boolean isDefenseHallAt(World world, int x, int y) {
         Position defenseHall = world.getDefenseHallPosition();
         return defenseHall.getX() == x && defenseHall.getY() == y;
+    }
+
+    private boolean isStairsAt(GameState state, int x, int y) {
+        Position stairs = state.getWorld().getStairsPosition();
+        return state.getDepth() < 5 && stairs.getX() == x && stairs.getY() == y;
     }
 
     private boolean isItemAt(GameState state, int x, int y) {

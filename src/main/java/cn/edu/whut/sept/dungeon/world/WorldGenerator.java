@@ -35,7 +35,7 @@ public final class WorldGenerator {
         Room entrance = rooms.get(0);
         Position spawn = entrance.getCenter();
         Position defenseHall = findFarthestRoomCenter(rooms, spawn);
-        return new World(width, height, tiles, rooms, corridors, spawn, defenseHall);
+        return new World(width, height, tiles, rooms, corridors, spawn, defenseHall, defenseHall);
     }
 
     private List<Room> createRooms(Random random, int width, int height, int targetRooms) {

@@ -17,6 +17,7 @@ public class WorldGeneratorTest {
         assertEquals(first.toTileString(), second.toTileString());
         assertEquals(first.getSpawnPosition(), second.getSpawnPosition());
         assertEquals(first.getDefenseHallPosition(), second.getDefenseHallPosition());
+        assertEquals(first.getStairsPosition(), second.getStairsPosition());
     }
 
     @Test
@@ -44,6 +45,7 @@ public class WorldGeneratorTest {
             assertTrue(world.isReachable(world.getSpawnPosition(), room.getCenter()));
         }
         assertTrue(world.isReachable(world.getSpawnPosition(), world.getDefenseHallPosition()));
+        assertTrue(world.isReachable(world.getSpawnPosition(), world.getStairsPosition()));
     }
 
     @Test

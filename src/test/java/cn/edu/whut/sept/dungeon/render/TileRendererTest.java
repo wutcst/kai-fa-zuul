@@ -56,6 +56,17 @@ public class TileRendererTest {
                 renderer.colorFor(state, enemy.getPosition().getX(), enemy.getPosition().getY()));
     }
 
+    @Test
+    public void rendererUsesStairsColorForVisibleStairs() {
+        GameState state = new GameEngine().playWithInputString("n123s").getState();
+        Position stairs = state.getWorld().getStairsPosition();
+        GameState nearStairs = stateAfterPath(state, adjacentWalkableTile(state, stairs));
+        TileRenderer renderer = new TileRenderer();
+
+        assertEquals(TileRenderer.STAIRS_COLOR,
+                renderer.colorFor(nearStairs, stairs.getX(), stairs.getY()));
+    }
+
     private GameState moveUntilSpawnIsSeen(GameEngine engine) {
         GameState state = engine.getState();
         String path = pathBeyondVision(state);
