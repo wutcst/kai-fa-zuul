@@ -87,6 +87,7 @@ public class GameEngine {
                 break;
             case INVENTORY:
                 state = state.describeInventory();
+                canAdvanceTurn = true;
                 break;
             case SAVE_AND_QUIT:
                 state = state.markSaveRequested().markExited().withMessage("Save requested.");
@@ -142,6 +143,14 @@ public class GameEngine {
             return true;
         }
         if (before.getPlayer().getExp() != after.getPlayer().getExp()) {
+            return true;
+        }
+        if (before.getPlayer().getHp() != after.getPlayer().getHp()) {
+            return true;
+        }
+        if (before.getPlayer().getAtk() != after.getPlayer().getAtk()
+                || before.getPlayer().getDef() != after.getPlayer().getDef()
+                || before.getPlayer().getCoffeeBoost() != after.getPlayer().getCoffeeBoost()) {
             return true;
         }
         if (before.getInventory().getItemIds().size() != after.getInventory().getItemIds().size()) {

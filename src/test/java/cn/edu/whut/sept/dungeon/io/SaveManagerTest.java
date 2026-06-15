@@ -141,6 +141,24 @@ public class SaveManagerTest {
         assertTrue(loadedEnemy.getHp() < enemy.getHp());
     }
 
+    @Test
+    public void saveAndLoadRestoresEquipmentAndBoost() {
+        File saveFile = saveFile("equipment");
+        SaveManager saveManager = new SaveManager(saveFile);
+        GameState state = GameState.newGame(123L);
+        GameState withWeapon = stateAfterPath(state, findItem(state, "steel-keyboard").getPosition()).interact();
+        GameState withCoffee = stateAfterPath(withWeapon, findItem(withWeapon, "coffee").getPosition()).interact()
+                .describeInventory();
+
+        saveManager.save(withCoffee);
+        GameState loaded = new GameEngine(saveManager).playWithInputString("o").getState();
+
+        assertEquals("steel-keyboard", loaded.getPlayer().getWeapon());
+        assertEquals(9, loaded.getPlayer().getAtk());
+        assertEquals(3, loaded.getPlayer().getCoffeeBoost());
+        assertFalse(loaded.getInventory().contains("coffee"));
+    }
+
     private File saveFile(String name) {
         File directory = new File("target/test-saves");
         if (!directory.exists()) {

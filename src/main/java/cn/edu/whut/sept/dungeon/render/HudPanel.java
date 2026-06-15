@@ -46,6 +46,8 @@ public final class HudPanel extends JPanel {
                 + "    Lv: " + state.getPlayer().getLevel()
                 + "    EXP: " + state.getPlayer().getExp()
                 + "    ATK/DEF: " + state.getPlayer().getAtk() + "/" + state.getPlayer().getDef()
+                + "    Gear: " + state.getPlayer().getWeapon() + "/" + state.getPlayer().getArmor()
+                + "    Boost: +" + state.getPlayer().getCoffeeBoost()
                 + "    Player: (" + state.getPlayer().getX() + ", " + state.getPlayer().getY() + ")"
                 + "    Inventory: " + state.getInventory().summary();
     }

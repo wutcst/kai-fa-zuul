@@ -28,6 +28,12 @@ public final class Inventory {
         return new Inventory(next);
     }
 
+    public Inventory remove(String itemId) {
+        List<String> next = new ArrayList<String>(itemIds);
+        next.remove(itemId);
+        return new Inventory(next);
+    }
+
     public boolean contains(String itemId) {
         return itemIds.contains(itemId);
     }

@@ -143,6 +143,9 @@ public final class SaveManager {
         int def;
         int level;
         int exp;
+        String weapon;
+        String armor;
+        int coffeeBoost;
 
         static PlayerData from(GameState.PlayerState player) {
             PlayerData data = new PlayerData();
@@ -156,6 +159,9 @@ public final class SaveManager {
             data.def = player.getDef();
             data.level = player.getLevel();
             data.exp = player.getExp();
+            data.weapon = player.getWeapon();
+            data.armor = player.getArmor();
+            data.coffeeBoost = player.getCoffeeBoost();
             return data;
         }
 
@@ -167,7 +173,8 @@ public final class SaveManager {
             int restoredLevel = level <= 0 ? GameState.PlayerState.DEFAULT_LEVEL : level;
             int restoredExp = exp < 0 ? GameState.PlayerState.DEFAULT_EXP : exp;
             return GameState.PlayerState.of(x, y, direction == null ? Direction.SOUTH : direction, steps,
-                    restoredHp, restoredMaxHp, restoredAtk, restoredDef, restoredLevel, restoredExp);
+                    restoredHp, restoredMaxHp, restoredAtk, restoredDef, restoredLevel, restoredExp,
+                    weapon, armor, coffeeBoost);
         }
     }
 

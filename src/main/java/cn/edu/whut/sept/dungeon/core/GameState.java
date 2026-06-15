@@ -23,6 +23,15 @@ public final class GameState {
     private static final String PASS = "pass";
     private static final String STUDENT_CARD = "student-card";
     private static final String USB = "usb";
+    private static final String SMALL_POTION = "small-potion";
+    private static final String BIG_POTION = "big-potion";
+    private static final String COFFEE = "coffee";
+    private static final String WEAPON_1 = "wooden-keyboard";
+    private static final String WEAPON_2 = "steel-keyboard";
+    private static final String WEAPON_3 = "refactor-blade";
+    private static final String ARMOR_1 = "lab-coat";
+    private static final String ARMOR_2 = "review-robe";
+    private static final String ARMOR_3 = "defense-suit";
     private static final int ENEMY_AGGRO_RANGE = 8;
 
     private final Long seed;
@@ -294,7 +303,31 @@ public final class GameState {
     }
 
     public GameState describeInventory() {
+        if (isGameOver()) {
+            return withMessage("Game over. Start a new game to try again.");
+        }
+        if (inventory.contains(BIG_POTION) && player.getHp() < player.getMaxHp()) {
+            return usePotion(BIG_POTION, 16);
+        }
+        if (inventory.contains(SMALL_POTION) && player.getHp() < player.getMaxHp()) {
+            return usePotion(SMALL_POTION, 8);
+        }
+        if (inventory.contains(COFFEE) && player.getCoffeeBoost() == 0) {
+            Inventory nextInventory = inventory.remove(COFFEE);
+            PlayerState boostedPlayer = player.withCoffeeBoost(3);
+            return new GameState(seed, started, exited, saveRequested, status, boostedPlayer, world,
+                    nextInventory, items, enemies, npcs, quest, explored, visible,
+                    "Coffee inspiration active. Next attacks gain +3 ATK.");
+        }
         return withMessage("Inventory: " + inventory.summary() + ".");
+    }
+
+    private GameState usePotion(String potionId, int amount) {
+        Inventory nextInventory = inventory.remove(potionId);
+        PlayerState healedPlayer = player.heal(amount);
+        return new GameState(seed, started, exited, saveRequested, status, healedPlayer, world,
+                nextInventory, items, enemies, npcs, quest, explored, visible,
+                "Used " + potionId + " and restored " + (healedPlayer.getHp() - player.getHp()) + " HP.");
     }
 
     public GameState damagePlayer(int amount) {
@@ -382,13 +415,13 @@ public final class GameState {
     }
 
     private GameState attackEnemy(PlayerState turnedPlayer, Enemy enemy) {
-        int damage = CombatSystem.damage(turnedPlayer.getAtk(), enemy.getDef());
+        int damage = CombatSystem.damage(turnedPlayer.effectiveAtk(), enemy.getDef());
         Enemy damagedEnemy = enemy.damage(damage);
         List<Enemy> nextEnemies = replaceEnemy(enemy, damagedEnemy);
-        PlayerState nextPlayer = turnedPlayer;
+        PlayerState nextPlayer = turnedPlayer.afterAttack();
         String nextMessage = "Hit " + enemy.getType() + " for " + damage + " damage.";
         if (!damagedEnemy.isAlive()) {
-            nextPlayer = turnedPlayer.gainExp(enemy.getExpReward());
+            nextPlayer = nextPlayer.gainExp(enemy.getExpReward());
             nextMessage = "Defeated " + enemy.getType() + " and gained " + enemy.getExpReward() + " EXP.";
         }
         return new GameState(seed, started, exited, saveRequested, status, nextPlayer, world,
@@ -525,9 +558,17 @@ public final class GameState {
             nextItems.add(current.getId().equals(item.getId()) ? current.collect() : current);
         }
         Inventory nextInventory = inventory.add(item.getId());
-        return new GameState(seed, started, exited, saveRequested, status, player, world,
-                nextInventory, nextItems, enemies, npcs, quest, explored, visible,
-                "Picked up " + item.getName() + ".");
+        PlayerState nextPlayer = player;
+        String nextMessage = "Picked up " + item.getName() + ".";
+        if (isWeapon(item.getId())) {
+            nextPlayer = player.equipWeapon(item.getId(), weaponBonus(item.getId()));
+            nextMessage = "Equipped " + item.getName() + ". ATK is now " + nextPlayer.getAtk() + ".";
+        } else if (isArmor(item.getId())) {
+            nextPlayer = player.equipArmor(item.getId(), armorBonus(item.getId()));
+            nextMessage = "Equipped " + item.getName() + ". DEF is now " + nextPlayer.getDef() + ".";
+        }
+        return new GameState(seed, started, exited, saveRequested, status, nextPlayer, world,
+                nextInventory, nextItems, enemies, npcs, quest, explored, visible, nextMessage);
     }
 
     private GameState talkTo(Npc npc) {
@@ -602,9 +643,13 @@ public final class GameState {
         private final int def;
         private final int level;
         private final int exp;
+        private final String weapon;
+        private final String armor;
+        private final int coffeeBoost;
 
         private PlayerState(int x, int y, Direction direction, int steps,
-                            int hp, int maxHp, int atk, int def, int level, int exp) {
+                            int hp, int maxHp, int atk, int def, int level, int exp,
+                            String weapon, String armor, int coffeeBoost) {
             this.x = x;
             this.y = y;
             this.direction = direction;
@@ -615,6 +660,9 @@ public final class GameState {
             this.def = Math.max(0, def);
             this.level = Math.max(1, level);
             this.exp = Math.max(0, exp);
+            this.weapon = weapon == null ? "none" : weapon;
+            this.armor = armor == null ? "none" : armor;
+            this.coffeeBoost = Math.max(0, coffeeBoost);
         }
 
         public static PlayerState origin() {
@@ -631,12 +679,20 @@ public final class GameState {
 
         public static PlayerState of(int x, int y, Direction direction, int steps,
                                      int hp, int maxHp, int atk, int def, int level, int exp) {
-            return new PlayerState(x, y, direction, steps, hp, maxHp, atk, def, level, exp);
+            return new PlayerState(x, y, direction, steps, hp, maxHp, atk, def, level, exp,
+                    "none", "none", 0);
+        }
+
+        public static PlayerState of(int x, int y, Direction direction, int steps,
+                                     int hp, int maxHp, int atk, int def, int level, int exp,
+                                     String weapon, String armor, int coffeeBoost) {
+            return new PlayerState(x, y, direction, steps, hp, maxHp, atk, def, level, exp,
+                    weapon, armor, coffeeBoost);
         }
 
         private static PlayerState withDefaults(int x, int y, Direction direction, int steps) {
             return new PlayerState(x, y, direction, steps, DEFAULT_MAX_HP, DEFAULT_MAX_HP,
-                    DEFAULT_ATK, DEFAULT_DEF, DEFAULT_LEVEL, DEFAULT_EXP);
+                    DEFAULT_ATK, DEFAULT_DEF, DEFAULT_LEVEL, DEFAULT_EXP, "none", "none", 0);
         }
 
         public int getX() {
@@ -679,25 +735,69 @@ public final class GameState {
             return exp;
         }
 
+        public String getWeapon() {
+            return weapon;
+        }
+
+        public String getArmor() {
+            return armor;
+        }
+
+        public int getCoffeeBoost() {
+            return coffeeBoost;
+        }
+
+        public int effectiveAtk() {
+            return atk + coffeeBoost;
+        }
+
         public Position getPosition() {
             return new Position(x, y);
         }
 
         private PlayerState withDirection(Direction nextDirection) {
-            return new PlayerState(x, y, nextDirection, steps, hp, maxHp, atk, def, level, exp);
+            return new PlayerState(x, y, nextDirection, steps, hp, maxHp, atk, def, level, exp,
+                    weapon, armor, coffeeBoost);
         }
 
         private PlayerState moveTo(Position position) {
             return new PlayerState(position.getX(), position.getY(), direction, steps + 1,
-                    hp, maxHp, atk, def, level, exp);
+                    hp, maxHp, atk, def, level, exp, weapon, armor, coffeeBoost);
         }
 
         private PlayerState damage(int amount) {
-            return new PlayerState(x, y, direction, steps, hp - amount, maxHp, atk, def, level, exp);
+            return new PlayerState(x, y, direction, steps, hp - amount, maxHp, atk, def, level, exp,
+                    weapon, armor, coffeeBoost);
         }
 
         private PlayerState gainExp(int amount) {
-            return new PlayerState(x, y, direction, steps, hp, maxHp, atk, def, level, exp + amount);
+            return new PlayerState(x, y, direction, steps, hp, maxHp, atk, def, level, exp + amount,
+                    weapon, armor, coffeeBoost);
+        }
+
+        private PlayerState heal(int amount) {
+            return new PlayerState(x, y, direction, steps, hp + amount, maxHp, atk, def, level, exp,
+                    weapon, armor, coffeeBoost);
+        }
+
+        private PlayerState equipWeapon(String itemId, int bonus) {
+            return new PlayerState(x, y, direction, steps, hp, maxHp, DEFAULT_ATK + bonus, def, level, exp,
+                    itemId, armor, coffeeBoost);
+        }
+
+        private PlayerState equipArmor(String itemId, int bonus) {
+            return new PlayerState(x, y, direction, steps, hp, maxHp, atk, DEFAULT_DEF + bonus, level, exp,
+                    weapon, itemId, coffeeBoost);
+        }
+
+        private PlayerState withCoffeeBoost(int bonus) {
+            return new PlayerState(x, y, direction, steps, hp, maxHp, atk, def, level, exp,
+                    weapon, armor, bonus);
+        }
+
+        private PlayerState afterAttack() {
+            return new PlayerState(x, y, direction, steps, hp, maxHp, atk, def, level, exp,
+                    weapon, armor, 0);
         }
     }
 
@@ -767,15 +867,42 @@ public final class GameState {
         List<String> ids = new ArrayList<String>();
         ids.add(STUDENT_CARD);
         ids.add(USB);
+        ids.add(SMALL_POTION);
+        ids.add(BIG_POTION);
+        ids.add(COFFEE);
+        ids.add(WEAPON_1);
+        ids.add(WEAPON_2);
+        ids.add(WEAPON_3);
+        ids.add(ARMOR_1);
+        ids.add(ARMOR_2);
+        ids.add(ARMOR_3);
 
         List<Item> result = new ArrayList<Item>();
-        List<Room> rooms = world.getRooms();
         List<Room> candidateRooms = itemRooms(world);
         for (int i = 0; i < ids.size(); i++) {
             String id = ids.get(i);
-            result.add(new Item(id, displayName(id), candidateRooms.get(i % candidateRooms.size()).getCenter(), false));
+            result.add(new Item(id, displayName(id), itemPosition(candidateRooms, i), false));
         }
         return result;
+    }
+
+    private static Position itemPosition(List<Room> rooms, int itemIndex) {
+        int roomIndex = itemIndex < 2 ? itemIndex : itemIndex + 5;
+        Room room = rooms.get(roomIndex % rooms.size());
+        Position center = room.getCenter();
+        int offset = itemIndex % 4;
+        int x = center.getX();
+        int y = center.getY();
+        if (offset == 0 && center.getX() + 1 <= room.getRight()) {
+            x = center.getX() + 1;
+        } else if (offset == 1 && center.getX() - 1 >= room.getX()) {
+            x = center.getX() - 1;
+        } else if (offset == 2 && center.getY() + 1 <= room.getBottom()) {
+            y = center.getY() + 1;
+        } else if (center.getY() - 1 >= room.getY()) {
+            y = center.getY() - 1;
+        }
+        return new Position(x, y);
     }
 
     private static List<Npc> createNpcs(World world) {
@@ -815,6 +942,46 @@ public final class GameState {
         if (STUDENT_CARD.equals(itemId)) {
             return "student card";
         }
+        if (SMALL_POTION.equals(itemId)) {
+            return "small potion";
+        }
+        if (BIG_POTION.equals(itemId)) {
+            return "big potion";
+        }
         return itemId;
+    }
+
+    private static boolean isWeapon(String itemId) {
+        return WEAPON_1.equals(itemId) || WEAPON_2.equals(itemId) || WEAPON_3.equals(itemId);
+    }
+
+    private static boolean isArmor(String itemId) {
+        return ARMOR_1.equals(itemId) || ARMOR_2.equals(itemId) || ARMOR_3.equals(itemId);
+    }
+
+    private static int weaponBonus(String itemId) {
+        if (WEAPON_3.equals(itemId)) {
+            return 6;
+        }
+        if (WEAPON_2.equals(itemId)) {
+            return 4;
+        }
+        if (WEAPON_1.equals(itemId)) {
+            return 2;
+        }
+        return 0;
+    }
+
+    private static int armorBonus(String itemId) {
+        if (ARMOR_3.equals(itemId)) {
+            return 5;
+        }
+        if (ARMOR_2.equals(itemId)) {
+            return 3;
+        }
+        if (ARMOR_1.equals(itemId)) {
+            return 1;
+        }
+        return 0;
     }
 }

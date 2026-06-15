@@ -289,6 +289,53 @@ public class GameEngineTest {
     }
 
     @Test
+    public void pickingUpEquipmentUpdatesCombatStats() {
+        GameState state = GameState.newGame(123L);
+        Item weapon = findItem(state, "steel-keyboard");
+        GameState weaponState = stateAfterPath(state, weapon.getPosition()).interact();
+        Item armor = findItem(weaponState, "review-robe");
+
+        GameState equipped = stateAfterPath(weaponState, armor.getPosition()).interact();
+
+        assertEquals("steel-keyboard", weaponState.getPlayer().getWeapon());
+        assertEquals(9, weaponState.getPlayer().getAtk());
+        assertEquals("review-robe", equipped.getPlayer().getArmor());
+        assertEquals(4, equipped.getPlayer().getDef());
+    }
+
+    @Test
+    public void potionRestoresHpAndIsConsumed() {
+        GameState state = GameState.newGame(123L);
+        Item potion = findItem(state, "small-potion");
+        GameState withPotion = stateAfterPath(state, potion.getPosition()).interact().damagePlayer(12);
+
+        GameState healed = withPotion.describeInventory();
+
+        assertEquals(26, healed.getPlayer().getHp());
+        assertFalse(healed.getInventory().contains("small-potion"));
+        assertTrue(healed.getMessage().contains("restored 8 HP"));
+    }
+
+    @Test
+    public void coffeeBoostsNextAttackAndThenExpires() {
+        GameState state = GameState.newGame(123L);
+        Item coffee = findItem(state, "coffee");
+        GameState withCoffee = stateAfterPath(state, coffee.getPosition()).interact();
+        GameState boosted = withCoffee.describeInventory();
+        Enemy enemy = boosted.getEnemies().get(0);
+        Position adjacent = adjacentWalkableTile(boosted, enemy.getPosition());
+        GameState adjacentState = stateAfterPath(boosted, adjacent);
+
+        GameState attacked = adjacentState.movePlayer(directionBetween(adjacent, enemy.getPosition()));
+
+        assertEquals(3, boosted.getPlayer().getCoffeeBoost());
+        assertFalse(boosted.getInventory().contains("coffee"));
+        assertFalse(findEnemy(attacked, enemy.getId()).isAlive());
+        assertEquals(enemy.getExpReward(), attacked.getPlayer().getExp());
+        assertEquals(0, attacked.getPlayer().getCoffeeBoost());
+    }
+
+    @Test
     public void defenseDoorRejectsMissingMaterials() {
         GameEngine engine = new GameEngine();
         engine.handleInput(InputCommand.newGame(123L));

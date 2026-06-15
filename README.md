@@ -100,7 +100,7 @@ java -cp "target/classes:$(cat target/runtime-classpath.txt)" cn.edu.whut.sept.d
 |---|---|
 | `K` / `H` / `J` / `L` | 上、左、下、右移动 |
 | `E` | 与当前位置的道具、NPC 或答辩大厅交互 |
-| `I` | 查看背包和状态提示 |
+| `I` | 查看背包；有可用药水或咖啡时使用一个补给 |
 | `:Q` | 回放模式中保存并退出 |
 | `O` | 回放模式中读取存档 |
 
@@ -111,7 +111,7 @@ n<seed>s         开始新游戏
 o                读取存档
 h/j/k/l          移动
 e                交互
-i                查看背包/状态
+i                查看背包/状态；可用时使用药水或咖啡
 :q               保存并退出
 !answer(pom.xml) 回答 Maven 课程谜题
 ```
