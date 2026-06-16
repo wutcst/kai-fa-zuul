@@ -1,5 +1,7 @@
 package cn.edu.whut.sept.dungeon.core;
 
+import cn.edu.whut.sept.dungeon.ai.EnemyAiResult;
+import cn.edu.whut.sept.dungeon.ai.EnemyAiSystem;
 import cn.edu.whut.sept.dungeon.combat.CombatSystem;
 import cn.edu.whut.sept.dungeon.entity.Enemy;
 import cn.edu.whut.sept.dungeon.entity.Inventory;
@@ -46,6 +48,7 @@ public final class GameState {
     private static final String BOSS_ID = "defense-committee";
     private static final int KEYBOARD_PISTOL_RANGE = 6;
     private static final int KEYBOARD_PISTOL_DAMAGE = 4;
+    private static final int ENEMY_PROJECTILE_DEFENSE = 0;
 
     private final Long seed;
     private final int depth;
@@ -360,9 +363,12 @@ public final class GameState {
             return this;
         }
         ProjectileTickResult projectileResult = advanceProjectiles();
-        return new GameState(seed, depth, started, exited, saveRequested, tick + 1, status, projectileResult.player, world,
-                inventory, items, projectileResult.enemies, projectileResult.projectiles, rooms, npcs, traps, quest,
-                explored, visible, projectileResult.message == null ? "Tick " + (tick + 1) + "." : projectileResult.message)
+        EnemyAiResult aiResult = advanceEnemyAi(projectileResult);
+        GameStatus nextStatus = aiResult.getPlayer().getHp() <= 0 ? GameStatus.GAME_OVER : status;
+        return new GameState(seed, depth, started, exited, saveRequested, tick + 1, nextStatus, aiResult.getPlayer(), world,
+                inventory, items, aiResult.getEnemies(), aiResult.getProjectiles(), rooms, npcs, traps, quest,
+                explored, visible, firstMessage(aiResult.getMessage(), projectileResult.message,
+                nextStatus == GameStatus.GAME_OVER ? "Game over. HP reached 0." : "Tick " + (tick + 1) + "."))
                 .refreshRoomState();
     }
 
@@ -830,6 +836,13 @@ public final class GameState {
                     }
                     break;
                 }
+                if (projectile.getOwner() == ProjectileOwner.ENEMY && nextPosition.equals(nextPlayer.getPosition())) {
+                    int damage = CombatSystem.damage(projectile.getDamage(), nextPlayer.getDef() + ENEMY_PROJECTILE_DEFENSE);
+                    nextPlayer = nextPlayer.damage(damage);
+                    current = current.kill();
+                    nextMessage = "Enemy projectile hit you for " + damage + " damage.";
+                    break;
+                }
                 current = current.moveTo(nextPosition);
             }
             if (current.isAlive()) {
@@ -843,6 +856,23 @@ public final class GameState {
             return new ProjectileTickResult(nextEnemies, nextProjectiles, nextMessage, nextPlayer);
         }
         return new ProjectileTickResult(nextEnemies, nextProjectiles, nextMessage);
+    }
+
+    private EnemyAiResult advanceEnemyAi(ProjectileTickResult projectileResult) {
+        RoomState current = roomStateAt(projectileResult.player.getPosition());
+        int activeRoomId = current != null && current.getStatus() == RoomStatus.ACTIVE ? current.getId() : -1;
+        return new EnemyAiSystem().tick(world, projectileResult.enemies, projectileResult.projectiles,
+                projectileResult.player, tick + 1, activeRoomId);
+    }
+
+    private String firstMessage(String first, String second, String fallback) {
+        if (first != null) {
+            return first;
+        }
+        if (second != null) {
+            return second;
+        }
+        return fallback;
     }
 
     private Enemy enemyAt(List<Enemy> enemyList, Position position) {
@@ -1232,6 +1262,10 @@ public final class GameState {
                     weapon, armor, coffeeBoost);
         }
 
+        public PlayerState takeDamage(int amount) {
+            return damage(amount);
+        }
+
         private PlayerState gainExp(int amount) {
             return new PlayerState(x, y, direction, steps, hp, maxHp, atk, def, level, exp + amount,
                     weapon, armor, coffeeBoost);
@@ -1438,6 +1472,8 @@ public final class GameState {
         if (!rooms.isEmpty()) {
             result.add(scaleEnemy(Enemy.bug("bug-1", rooms.get(Math.min(5, rooms.size() - 1)).getCenter()), depth));
             result.add(scaleEnemy(Enemy.deadline("deadline-1", rooms.get(Math.min(6, rooms.size() - 1)).getCenter()), depth));
+            result.add(scaleEnemy(Enemy.reviewShooter("review-shooter-1",
+                    rooms.get(Math.min(7, rooms.size() - 1)).getCenter()), depth));
         }
         if (depth >= MAX_DEPTH) {
             result.add(Enemy.defenseCommittee(BOSS_ID, world.getDefenseHallPosition()));

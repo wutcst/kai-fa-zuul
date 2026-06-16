@@ -24,11 +24,15 @@ public final class Enemy {
     }
 
     public static Enemy bug(String id, Position position) {
-        return new Enemy(id, "Bug", position, 8, 3, 0, 5, true);
+        return new Enemy(id, "Bug Slime", position, 8, 3, 0, 5, true);
     }
 
     public static Enemy deadline(String id, Position position) {
-        return new Enemy(id, "Deadline", position, 6, 6, 1, 8, true);
+        return new Enemy(id, "Deadline Runner", position, 6, 6, 1, 8, true);
+    }
+
+    public static Enemy reviewShooter(String id, Position position) {
+        return new Enemy(id, "Review Shooter", position, 7, 4, 1, 10, true);
     }
 
     public static Enemy defenseCommittee(String id, Position position) {
@@ -65,6 +69,18 @@ public final class Enemy {
 
     public boolean isAlive() {
         return alive;
+    }
+
+    public boolean isBugSlime() {
+        return "Bug Slime".equals(type) || "Bug".equals(type);
+    }
+
+    public boolean isDeadlineRunner() {
+        return "Deadline Runner".equals(type) || "Deadline".equals(type);
+    }
+
+    public boolean isReviewShooter() {
+        return "Review Shooter".equals(type);
     }
 
     public Enemy damage(int amount) {

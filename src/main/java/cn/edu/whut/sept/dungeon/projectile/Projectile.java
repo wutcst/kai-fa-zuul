@@ -29,6 +29,10 @@ public final class Projectile {
         return new Projectile(id, ProjectileOwner.PLAYER, position, direction, 1, damage, range, true);
     }
 
+    public static Projectile enemy(String id, Position position, Direction direction, int damage, int range) {
+        return new Projectile(id, ProjectileOwner.ENEMY, position, direction, 1, damage, range, true);
+    }
+
     public String getId() {
         return id;
     }

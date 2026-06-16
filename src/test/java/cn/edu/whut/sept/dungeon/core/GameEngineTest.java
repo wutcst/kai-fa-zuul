@@ -9,6 +9,7 @@ import cn.edu.whut.sept.dungeon.entity.Inventory;
 import cn.edu.whut.sept.dungeon.entity.Item;
 import cn.edu.whut.sept.dungeon.entity.Npc;
 import cn.edu.whut.sept.dungeon.entity.Trap;
+import cn.edu.whut.sept.dungeon.projectile.Projectile;
 import cn.edu.whut.sept.dungeon.quest.QuestState;
 import cn.edu.whut.sept.dungeon.room.RoomState;
 import cn.edu.whut.sept.dungeon.room.RoomStatus;
@@ -335,12 +336,12 @@ public class GameEngineTest {
         assertEquals(new Position(4, 2), firstTick.getProjectiles().get(0).getPosition());
         assertTrue(damagedEnemy.getHp() < findEnemy(state, "target").getHp());
         assertTrue(secondTick.getProjectiles().isEmpty());
-        assertEquals("Projectile hit Bug for 4 damage.", secondTick.getMessage());
+        assertEquals("Projectile hit Bug Slime for 4 damage.", secondTick.getMessage());
     }
 
     @Test
     public void projectileDisappearsWhenItHitsWall() {
-        GameState state = facePlayer(projectileTestState(), Direction.WEST);
+        GameState state = facePlayer(projectileWallTestState(), Direction.WEST);
 
         GameState fired = state.attack();
         GameState afterWall = fired.tick().tick().tick();
@@ -369,6 +370,71 @@ public class GameEngineTest {
         assertNotNull(findItem(clearedRoom, "room-reward-" + clearedRoom.getDepth() + "-"
                 + clearedRoom.currentRoomState().getId()));
         assertFalse(activeRoom.getPlayer().getPosition().equals(afterClearExit.getPlayer().getPosition()));
+    }
+
+    @Test
+    public void tickDrivenBugSlimePursuesInsideActiveRoom() {
+        GameState state = activeAiRoomState(Enemy.bug("bug-ai", new Position(6, 2)),
+                new Position(2, 2));
+
+        GameState ticked = state.tick();
+
+        assertEquals(new Position(5, 2), findEnemy(ticked, "bug-ai").getPosition());
+        assertTrue(ticked.getMessage().contains("Tick") || ticked.getMessage().contains("Bug Slime"));
+    }
+
+    @Test
+    public void deadlineRunnerMovesTwoStepsOnTick() {
+        GameState state = activeAiRoomState(Enemy.deadline("runner-ai", new Position(6, 2)),
+                new Position(2, 2));
+
+        GameState ticked = state.tick();
+
+        assertEquals(new Position(4, 2), findEnemy(ticked, "runner-ai").getPosition());
+    }
+
+    @Test
+    public void reviewShooterFiresEnemyProjectileOnCooldown() {
+        GameState state = activeAiRoomState(Enemy.reviewShooter("shooter-ai", new Position(6, 2)),
+                new Position(2, 2));
+
+        GameState ticked = state.tick().tick().tick();
+
+        assertEquals(1, ticked.getProjectiles().size());
+        assertEquals("Review Shooter fires a review note.", ticked.getMessage());
+    }
+
+    @Test
+    public void enemyProjectileCanDamagePlayerOnTick() {
+        GameState state = activeAiRoomState(Enemy.reviewShooter("shooter-hit", new Position(7, 2)),
+                new Position(2, 2));
+
+        GameState fired = state.tick().tick().tick();
+        GameState hit = fired.tick().tick().tick().tick().tick();
+
+        assertTrue(hit.getPlayer().getHp() < state.getPlayer().getHp());
+        assertTrue(hit.getMessage().contains("Enemy projectile hit you"));
+    }
+
+    @Test
+    public void reviewShooterKeepsDistanceWhenPlayerIsInRange() {
+        GameState state = activeAiRoomState(Enemy.reviewShooter("shooter-distance", new Position(5, 2)),
+                new Position(2, 2));
+
+        GameState ticked = state.tick();
+
+        assertEquals(new Position(5, 2), findEnemy(ticked, "shooter-distance").getPosition());
+        assertTrue(ticked.getProjectiles().isEmpty());
+    }
+
+    @Test
+    public void tickDrivenEnemyStaysInsideActiveCombatRoom() {
+        GameState state = activeAiRoomState(Enemy.deadline("runner-wall", new Position(5, 2)),
+                new Position(2, 2));
+
+        GameState ticked = state.tick().tick();
+
+        assertEquals(state.currentRoomState().getId(), ticked.roomStateAt(findEnemy(ticked, "runner-wall").getPosition()).getId());
     }
 
     @Test
@@ -871,6 +937,27 @@ public class GameEngineTest {
                 Collections.<Trap>emptyList(), QuestState.initial(), null, "Projectile test.");
     }
 
+    private GameState projectileWallTestState() {
+        int width = 8;
+        int height = 5;
+        Tile[][] tiles = new Tile[height][width];
+        for (int y = 0; y < height; y++) {
+            for (int x = 0; x < width; x++) {
+                tiles[y][x] = x == 0 || y == 0 || x == width - 1 || y == height - 1 ? Tile.WALL : Tile.FLOOR;
+            }
+        }
+        Position playerPosition = new Position(3, 2);
+        World world = new World(width, height, tiles,
+                Collections.singletonList(new Room(1, 1, 6, 3)),
+                Collections.emptyList(), playerPosition, new Position(6, 2), new Position(6, 3));
+        GameState.PlayerState player = GameState.PlayerState.of(playerPosition.getX(), playerPosition.getY(),
+                Direction.EAST, 0);
+        return GameState.restored(123L, 1, true, false, false, GameStatus.PLAYING, player, world,
+                Inventory.empty(), Collections.<Item>emptyList(), Collections.<Enemy>emptyList(),
+                Collections.<Npc>emptyList(), Collections.<Trap>emptyList(), QuestState.initial(),
+                null, "Projectile wall test.");
+    }
+
     private GameState combatRoomTestState() {
         int width = 9;
         int height = 5;
@@ -899,6 +986,29 @@ public class GameEngineTest {
         return GameState.restored(123L, 1, true, false, false, GameStatus.PLAYING, player, world,
                 Inventory.empty(), Collections.<Item>emptyList(), enemies, Collections.<Npc>emptyList(),
                 Collections.<Trap>emptyList(), QuestState.initial(), null, "Combat room test.");
+    }
+
+    private GameState activeAiRoomState(Enemy enemy, Position playerPosition) {
+        int width = 10;
+        int height = 5;
+        Tile[][] tiles = new Tile[height][width];
+        for (int y = 0; y < height; y++) {
+            for (int x = 0; x < width; x++) {
+                tiles[y][x] = x == 0 || y == 0 || x == width - 1 || y == height - 1 ? Tile.WALL : Tile.FLOOR;
+            }
+        }
+        World world = new World(width, height, tiles,
+                Collections.singletonList(new Room(1, 1, 8, 3)),
+                Collections.emptyList(), new Position(1, 2), new Position(8, 2), new Position(8, 2));
+        GameState.PlayerState player = GameState.PlayerState.of(playerPosition.getX(), playerPosition.getY(),
+                Direction.EAST, 0);
+        List<Enemy> enemies = new ArrayList<Enemy>();
+        enemies.add(enemy);
+        List<RoomState> rooms = Collections.singletonList(new RoomState(0, RoomType.COMBAT, RoomStatus.ACTIVE, false));
+        return GameState.restored(123L, 1, true, false, false, 0L, GameStatus.PLAYING, player, world,
+                Inventory.empty(), Collections.<Item>emptyList(), enemies, Collections.<Projectile>emptyList(),
+                rooms, Collections.<Npc>emptyList(), Collections.<Trap>emptyList(), QuestState.initial(),
+                null, "AI test.");
     }
 
     private GameState trapTestState(Trap trap) {

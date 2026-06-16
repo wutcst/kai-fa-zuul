@@ -9,6 +9,7 @@ import cn.edu.whut.sept.dungeon.core.VisibilityState;
 import cn.edu.whut.sept.dungeon.entity.Enemy;
 import cn.edu.whut.sept.dungeon.entity.Item;
 import cn.edu.whut.sept.dungeon.entity.Trap;
+import cn.edu.whut.sept.dungeon.projectile.ProjectileOwner;
 import cn.edu.whut.sept.dungeon.room.RoomStatus;
 import cn.edu.whut.sept.dungeon.world.Position;
 import cn.edu.whut.sept.dungeon.world.World;
@@ -159,6 +160,7 @@ public class SaveManagerTest {
         GameState loaded = new GameEngine(saveManager).playWithInputString("o").getState();
 
         assertEquals(1, loaded.getProjectiles().size());
+        assertEquals(ProjectileOwner.PLAYER, loaded.getProjectiles().get(0).getOwner());
         assertEquals(Direction.EAST, loaded.getProjectiles().get(0).getDirection());
         assertEquals(fired.getProjectiles().get(0).getRemainingRange(),
                 loaded.getProjectiles().get(0).getRemainingRange());
