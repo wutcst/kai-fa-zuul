@@ -120,10 +120,15 @@ public class SwingGameFrame extends JFrame {
             InputCommand command = InputCommand.fromKey(event.getKeyChar());
             engine.handleInput(command);
             refresh();
-            if (command.getType() == InputCommand.Type.INTERACT
-                    && GameText.assistantMavenPuzzle().equals(engine.getState().getMessage())) {
+            if (shouldPromptForPuzzleAnswer(command, engine.getState().getMessage())) {
                 promptForPuzzleAnswer();
             }
         }
+    }
+
+    static boolean shouldPromptForPuzzleAnswer(InputCommand command, String message) {
+        return command != null
+                && command.getType() == InputCommand.Type.INTERACT
+                && GameText.assistantMavenPuzzle().equals(message);
     }
 }

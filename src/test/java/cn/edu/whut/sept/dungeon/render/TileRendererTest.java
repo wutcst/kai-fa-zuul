@@ -18,7 +18,6 @@ import org.junit.Test;
 
 import java.awt.Color;
 import java.awt.Graphics2D;
-import java.awt.event.KeyEvent;
 import java.awt.image.BufferedImage;
 import java.util.ArrayDeque;
 import java.util.Arrays;
@@ -102,33 +101,30 @@ public class TileRendererTest {
     }
 
     @Test
-    public void swingFramePromptsForPuzzleAnswerAfterAssistantInteraction() {
+    public void swingFrameDetectsAssistantPuzzlePromptAfterInteraction() {
         GameEngine engine = engineReadyForAssistantPuzzle();
-        TestSwingGameFrame frame = new TestSwingGameFrame(engine, "pom.xml");
-        try {
-            pressKey(frame, 'e');
+        GameState prompt = engine.handleInput(InputCommand.fromKey('e'));
 
-            assertEquals(1, frame.answerRequestCount);
-            assertTrue(engine.getState().getQuest().isMavenPuzzleSolved());
-            assertEquals(GameText.mavenCorrect(), engine.getState().getMessage());
-        } finally {
-            frame.dispose();
-        }
+        assertTrue(SwingGameFrame.shouldPromptForPuzzleAnswer(InputCommand.fromKey('e'), prompt.getMessage()));
     }
 
     @Test
-    public void swingFrameLeavesPuzzleUnsolvedWhenAnswerDialogIsCancelled() {
-        GameEngine engine = engineReadyForAssistantPuzzle();
-        TestSwingGameFrame frame = new TestSwingGameFrame(engine, null);
-        try {
-            pressKey(frame, 'e');
+    public void swingFrameDoesNotPromptForNonInteractionOrNonPuzzleMessages() {
+        assertTrue(!SwingGameFrame.shouldPromptForPuzzleAnswer(InputCommand.fromKey('w'),
+                GameText.assistantMavenPuzzle()));
+        assertTrue(!SwingGameFrame.shouldPromptForPuzzleAnswer(InputCommand.fromKey('e'), GameText.mavenIncorrect()));
+        assertTrue(!SwingGameFrame.shouldPromptForPuzzleAnswer(null, GameText.assistantMavenPuzzle()));
+    }
 
-            assertEquals(1, frame.answerRequestCount);
-            assertTrue(!engine.getState().getQuest().isMavenPuzzleSolved());
-            assertEquals(GameText.assistantMavenPuzzle(), engine.getState().getMessage());
-        } finally {
-            frame.dispose();
-        }
+    @Test
+    public void puzzleAnswerFlowWorksWithoutConstructingGuiFrame() {
+        GameEngine engine = engineReadyForAssistantPuzzle();
+        GameState prompt = engine.handleInput(InputCommand.fromKey('e'));
+        assertEquals(GameText.assistantMavenPuzzle(), prompt.getMessage());
+
+        GameState solved = engine.handleInput(InputCommand.answer("pom.xml"));
+        assertTrue(solved.getQuest().isMavenPuzzleSolved());
+        assertEquals(GameText.mavenCorrect(), solved.getMessage());
     }
 
     @Test
@@ -477,12 +473,6 @@ public class TileRendererTest {
         return engine;
     }
 
-    private void pressKey(SwingGameFrame frame, char key) {
-        KeyEvent event = new KeyEvent(frame, KeyEvent.KEY_PRESSED, System.currentTimeMillis(), 0,
-                KeyEvent.getExtendedKeyCodeForChar(key), key);
-        frame.getKeyListeners()[0].keyPressed(event);
-    }
-
     private Enemy findEnemy(GameState state, String enemyId) {
         for (Enemy enemy : state.getEnemies()) {
             if (enemy.getId().equals(enemyId)) {
@@ -554,22 +544,6 @@ public class TileRendererTest {
         private RoomVisit(GameState state, Room previousRoom) {
             this.state = state;
             this.previousRoom = previousRoom;
-        }
-    }
-
-    private static final class TestSwingGameFrame extends SwingGameFrame {
-        private final String answer;
-        private int answerRequestCount;
-
-        private TestSwingGameFrame(GameEngine engine, String answer) {
-            super(engine);
-            this.answer = answer;
-        }
-
-        @Override
-        String requestPuzzleAnswer() {
-            answerRequestCount++;
-            return answer;
         }
     }
 }
